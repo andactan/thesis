@@ -1,0 +1,21 @@
+algorithm:
+  class: VMPO
+  epochs: 2
+  minibatch: 1
+  pop_art: True
+
+sampler:
+  class: CpuSampler
+
+runner:
+  class: MinibatchRlEval
+
+agent:
+  class: MujocoVmpoAgent
+  args:
+    model: 
+      class: CompressiveTransformer
+      args:
+        size: medium
+        linear_value_output: False
+        separate_value_network: False

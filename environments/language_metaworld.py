@@ -84,8 +84,37 @@ class LanguageMetaworld(BaseMetaworld):
         return embedding, instruction_end
 
     # TODO: implement get_full_observation
-    def get_full_observation(self, observation=None):
-        pass
+    def get_full_observation(self, observation=None, instruction=None):
+        if observation is not None:
+            state = np.concatenate((
+                observation,
+                [
+                    self.demonstration_phase, self.steps_in_trial / 150,
+                    self.trial_success and not self.demonstration_phase
+                ]
+            ))
+            # fill out the remaining slots
+            state = np.concatenate(
+                (state, np.zeros(self.embed_dim - state.shape[0])))
+
+        else:
+            # instruction is not None
+            state = np.array(instruction)
+
+        if self.visual_observations:
+            self.env.viewer.render(64, 64, None)
+            camera_image, depth = self.env.viewer.read_pixels(
+                64, 64, depth=True)
+            camera_image = np.transpose(camera_image[::-1], (2, 0, 1))
+            camera_image = camera_image / 128 - 1
+            return dict(state=state,
+                        camera_image=camera_image)
+
+        return dict(
+            state=state,
+            task_id=np.array(self.env_id),
+            demonstration_phase=np.array(int(self.demonstration_phase))
+        )
 
     def _reset_env(self, new_episode=True):
         super()._reset_env(new_episode)

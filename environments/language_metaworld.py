@@ -21,18 +21,18 @@ class LanguageMetaworld(BaseMetaworld):
         # load vocabulary
         vocab_path = os.path.join(os.path.dirname(
             __file__), 'metaworld_vocab.pkl')
-        self.embeddings = pickle.load(os.open(vocab_path, 'rb'))
+        self.embeddings = pickle.load(open(vocab_path, 'rb'))
 
         # define the observation space
         if self.visual_observations:
             self.observation_space = gym.spaces.Dict({
                 'camera_image': gym.spaces.Box(low=-1, high=1, shape=(3, 64, 64)),
-                'state': gym.spaces.Box(low=-10, high=10, shape=(self.EMBED_DIM,)),
+                'state': gym.spaces.Box(low=-10, high=10, shape=(self.embed_dim,)),
             })
 
         else:
             self.observation_space = gym.spaces.Dict({
-                'state': gym.spaces.Box(low=-10, high=10, shape=(self.EMBED_DIM,)),
+                'state': gym.spaces.Box(low=-10, high=10, shape=(self.embed_dim,)),
                 'task_id': gym.spaces.Discrete(50),
                 'demonstration_phase': gym.spaces.Discrete(2),
             })
@@ -61,7 +61,7 @@ class LanguageMetaworld(BaseMetaworld):
                 self.num_trials_in_episode += 1
                 # go over demonstration again if failed in trial
                 self.demonstration_phase = not self.trial_success
-                self._reset_env()  # reset the env without going into a new episode
+                self._reset_env(new_episode=False)  # reset the env without going into a new episode
 
             full_observation = self.get_full_observation(self.observation)
 
@@ -123,3 +123,10 @@ class LanguageMetaworld(BaseMetaworld):
         self.instruction = random.sample(
             INSTRUCTIONS[self.env_name], 1)[0].split()
         self.instruction_idx = 0
+
+if __name__ == '__main__':
+    env = LanguageMetaworld(benchmark='ml10', action_repeat=1, demonstration_action_repeat=5,
+                            max_trials_per_episode=3, sample_num_classes=5, mode='meta-training')
+
+
+    print(env.embeddings)

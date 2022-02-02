@@ -11,8 +11,10 @@ class BaseMetaworld(gym.Env):
     def __init__(self, benchmark='ml10', action_repeat=1, demonstration_action_repeat=3, max_trials_per_episode=1,
                  dense_rewards=None, prev_action_observable=False, demonstrations=True, partially_observable=True, visual_observations=False, v2=False, **kwargs) -> None:
 
-        # choose appropriate benchmark
-        self.benchmark = BENCHMARKS[benchmark]
+        # choose appropriate benchmark and initialize the environment
+        self.benchmark = BENCHMARKS[benchmark](**kwargs)
+
+        print(self.benchmark)
 
         # define action space and applicable arguments
         self.action_space = gym.spaces.Box(low=np.array(
@@ -65,7 +67,7 @@ class BaseMetaworld(gym.Env):
     def reset(self):
         '''Resets the environment to its default configuration
         '''
-        self._reset_env(new_episode=False)
+        self._reset_env(new_episode=True)
         self.oracle_policy = POLICIES[self.env_name]() if not self.v2 else None
 
         # reset counters
@@ -119,3 +121,10 @@ class BaseMetaworld(gym.Env):
         self.demonstration_success = False
         self.steps_in_trial = 0
         self.steps_in_demonstration = 0
+
+
+if __name__ == '__main__':
+    env = BaseMetaworld(benchmark='ml10', action_repeat=1, demonstration_action_repeat=1,
+                               max_trials_per_episode=1, sample_num_classes=1, mode='meta-training', v2=True)
+
+    print(env.reset())

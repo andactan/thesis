@@ -166,6 +166,7 @@ class FeedForward(torch.nn.Module):
         self.dropout = torch.nn.Dropout(dropout)
         self.w2 = torch.nn.Linear(dim * mult, dim)
 
+    #TODO: remove kwargs
     def forward(self, x, **kwargs):
         if not self.glu:
             x = self.w1(x)

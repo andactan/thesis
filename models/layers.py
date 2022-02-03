@@ -1,4 +1,5 @@
 import torch
+import math
 import torch.nn.functional as F
 
 from inspect import isfunction
@@ -63,6 +64,12 @@ def full_attn(q, k, v, dropout_fn=None):
     if dropout_fn is not None:
         attn = dropout_fn(attn)
     return torch.einsum("bhij,bhjd->bhid", attn, v)
+
+# tensor iterator
+def iterate_tensor(t):
+    length = t.shape[0]
+    for ind in range(length):
+        yield t[ind]
 
 
 # helper classes
@@ -138,6 +145,38 @@ class ConvCompress(torch.nn.Module):
         mem = mem.transpose(1, 2)
         compressed_mem = self.conv(mem)
         return compressed_mem.transpose(1, 2)
+
+
+class CustomGELU(torch.nn.Module):
+    def forward(self, x):
+        return 0.5 * x * (1 + torch.tanh(math.sqrt(2 / math.pi) * (x + 0.044715 * torch.pow(x, 3))))
+
+
+GELU = torch.nn.GELU if hasattr(torch.nn, "GELU") else CustomGELU
+
+
+class FeedForward(torch.nn.Module):
+    def __init__(self, dim, mult=4, dropout=0.0, activation=None, glu=False):
+        super().__init__()
+        activation = default(activation, GELU)
+
+        self.glu = glu
+        self.w1 = torch.nn.Linear(dim, dim * mult * (2 if glu else 1))
+        self.act = activation()
+        self.dropout = torch.nn.Dropout(dropout)
+        self.w2 = torch.nn.Linear(dim * mult, dim)
+
+    def forward(self, x, **kwargs):
+        if not self.glu:
+            x = self.w1(x)
+            x = self.act(x)
+        else:
+            x, v = self.w1(x).chunk(2, dim=-1)
+            x = self.act(x) * v
+
+        x = self.dropout(x)
+        x = self.w2(x)
+        return x
 
 
 class SelfAttention(torch.nn.Module):
@@ -281,7 +320,9 @@ class SelfAttention(torch.nn.Module):
         cmem_k, cmem_v = map(merge_heads, (cmem_k, cmem_v))
         cmem_k, cmem_v = map(lambda x: x.expand(-1, h, -1, -1), (cmem_k, cmem_v))
 
-        old_mem_range = slice(-min(mem_len, self.memory_len) - self.sequence_len, -self.sequence_len)
+        old_mem_range = slice(
+            -min(mem_len, self.memory_len) - self.sequence_len, -self.sequence_len
+        )
         old_mem_k, old_mem_v = map(lambda x: x[:, :, old_mem_range].clone(), (k, v))
 
         q, old_mem_k, old_mem_v, cmem_k, cmem_v = map(
@@ -313,7 +354,7 @@ class CompressiveTransformer(torch.nn.Module):
         attention_dropout=0.8,
         ff_glu=False,
         ff_dropout=0.0,
-        attention_layer_dropout=0.0,
+        dropout=0.0,
         reconstruction_attention_dropout=0.0,
         reconstruction_loss_weight=1.0,
         one_kv_head=False,
@@ -327,6 +368,7 @@ class CompressiveTransformer(torch.nn.Module):
 
         # variable initializations
         self.sequence_len = sequence_len
+        self.reconstruction_loss_weight = reconstruction_loss_weight
         self.depth = depth
         self.memory_layers = list(self._memory_layers)
         self.token_embedding = torch.nn.Embedding(num_tokens, embedding_dim)
@@ -350,21 +392,21 @@ class CompressiveTransformer(torch.nn.Module):
 
         # attention layers
         wrapper = partial(GRUGating, dim, mogrify=mogrify_gru) if gru_gated_residual else Residual
-        self.attn_layers = torch.nn.ModuleList(
+        self.attention_layers = torch.nn.ModuleList(
             [
                 wrapper(
                     PreNorm(
                         dim,
                         SelfAttention(
                             dim,
-                            seq_len,
-                            mem_len,
+                            sequence_len,
+                            memory_len,
                             cmem_len,
                             cmem_ratio,
                             heads,
-                            dropout=attn_layer_dropout,
-                            attn_dropout=attn_dropout,
-                            reconstruction_attn_dropout=reconstruction_attn_dropout,
+                            dropout=dropout,
+                            attention_dropout=attention_dropout,
+                            reconstruction_attention_dropout=reconstruction_attention_dropout,
                             one_kv_head=one_kv_head,
                         ),
                     )
@@ -372,3 +414,71 @@ class CompressiveTransformer(torch.nn.Module):
                 for _ in range(depth)
             ]
         )
+
+        # feed forward layers
+        self.ff_layers = torch.nn.ModuleList(
+            [
+                wrapper(
+                    PreNorm(
+                        dim,
+                        FeedForward(dim, dropout=ff_dropout, glu=ff_glu, activation=torch.nn.ReLU),
+                    )
+                )
+                for _ in range(depth)
+            ]
+        )
+
+    def forward(self, x, memories=None, mask=None):
+        x = self.token_embedding(x)
+        x = self.to_model_dim(x)
+
+        b, t, d = x.shape
+
+        assert (
+            t <= self.seq_len
+        ), f"input contains a sequence length {t} that is greater than the designated maximum sequence length {self.seq_len}"
+
+
+        memories = default(memories, (None, None))
+        mem, cmem = memories
+
+        num_memory_layers = len(self.memory_layers)
+        init_empty_mem = lambda: torch.empty(num_memory_layers, b, 0, d, **to(x))
+        mem = default(mem, init_empty_mem)
+        cmem = default(cmem, init_empty_mem)
+
+        total_len = mem.shape[2] + cmem.shape[2] + self.seq_len
+        pos_emb = self.pos_embedding[:, (self.sequence_len - t):total_len]
+
+        next_mem = []
+        next_cmem = []
+        aux_loss = torch.tensor(0., requires_grad=True, **to(x))
+
+        # create an iterator to iterate through memories
+        mem_iter, cmem_iter = map(iterate_tensor, (mem, cmem))
+
+        for ind, (attn, ff) in enumerate(zip(self.attention_layers, self.ff_layers)):
+            layer_num = ind + 1
+
+            use_memory = layer_num in self.memory_layers
+            memories = (next(mem_iter), next(cmem_iter)) if use_memory else None
+
+            x, (mem_out, cmem_out), layer_aux_loss = attn(x, memories=memories, calc_memory=use_memory, input_mask=mask,
+                                                          pos_embed=pos_emb)
+            x, = ff(x)
+
+            aux_loss = aux_loss + layer_aux_loss
+
+            if not use_memory:
+                continue
+
+            next_mem.append(mem_out)
+            next_cmem.append(cmem_out)
+
+        out = self.to_logits(x)
+
+        next_mem, next_cmem = map(torch.stack, (next_mem, next_cmem))
+        next_mem, next_cmem = map(torch.detach, (next_mem, next_cmem))
+
+        aux_loss = aux_loss * self.reconstruction_loss_weight / num_memory_layers
+        return out, Memory(mem=next_mem, compressed_mem=next_cmem), aux_loss

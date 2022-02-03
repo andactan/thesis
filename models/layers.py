@@ -435,8 +435,8 @@ class CompressiveTransformer(torch.nn.Module):
         b, t, d = x.shape
 
         assert (
-            t <= self.seq_len
-        ), f"input contains a sequence length {t} that is greater than the designated maximum sequence length {self.seq_len}"
+            t <= self.sequence_len
+        ), f"input contains a sequence length {t} that is greater than the designated maximum sequence length {self.sequence_len}"
 
 
         memories = default(memories, (None, None))
@@ -447,7 +447,7 @@ class CompressiveTransformer(torch.nn.Module):
         mem = default(mem, init_empty_mem)
         cmem = default(cmem, init_empty_mem)
 
-        total_len = mem.shape[2] + cmem.shape[2] + self.seq_len
+        total_len = mem.shape[2] + cmem.shape[2] + self.sequence_len
         pos_emb = self.pos_embedding[:, (self.sequence_len - t):total_len]
 
         next_mem = []

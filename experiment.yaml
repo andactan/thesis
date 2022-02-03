@@ -11,7 +11,7 @@ runner:
   class: MinibatchRlEval
 
 agent:
-  class: MujocoVmpoAgent
+  class: VMPOAgent
   args:
     model: 
       class: CompressiveTransformer

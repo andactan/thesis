@@ -1,8 +1,9 @@
 import torch
 import numpy as np
-import learning_to_be_taught.vmpo.utils as utils
+import algorithms.vmpo.utils as utils
+
+from algorithms.vmpo.pop_art_normalization_layer import PopArtLayer
 from rlpyt.algos.base import RlAlgorithm
-from learning_to_be_taught.vmpo.popart_normalization import PopArtLayer
 from rlpyt.algos.pg.base import OptInfo
 from rlpyt.agents.base import AgentInputs
 from rlpyt.utils.tensor import valid_mean
@@ -11,6 +12,7 @@ from rlpyt.utils.collections import namedarraytuple, namedtuple
 from rlpyt.utils.misc import iterate_mb_idxs
 from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.algos.utils import (discount_return, valid_from_done)
+
 
 LossInputs = namedarraytuple("LossInputs",
                              ["agent_inputs", "action", "return_", "advantage", "valid", "old_dist_info"])

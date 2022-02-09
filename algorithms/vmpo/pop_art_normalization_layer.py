@@ -3,7 +3,7 @@ from numpy import mat
 import torch
 
 
-class PopArtLayer(torch.nn.module):
+class PopArtLayer(torch.nn.Module):
     def __init__(self, input_dim=256, output_dim=1, beta=1e-4):
         super(PopArtLayer, self).__init__()
 

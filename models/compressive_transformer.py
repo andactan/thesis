@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import layers
+import models.layers as layers
 
 from rlpyt.models.mlp import MlpModel
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims

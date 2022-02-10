@@ -1,11 +1,37 @@
+global:
+  sequence_len: &sequence_len 64
+  benchmark: &benchmark ml10
+
 algorithm:
   class: VMPO
-  epochs: 2
-  minibatch: 1
-  pop_art: True
+  args:
+    epochs: 2
+    minibatch: 1
+    pop_art: True
 
 sampler:
   class: CpuSampler
+  args:
+    batch_T: *sequence_len
+    batch_B: 22 * 12
+    eval_n_envs: 22 * 4
+    eval_max_steps: 1e+34
+    eval_max_trajectories: 22 * 4 * 4
+    
+    # sampling environments
+    env_kwargs: &env_kwargs
+      benchmark: *benchmark
+      action_repeat: 2
+      demonstration_action_repeat: 5
+      max_trials_per_episode: 3
+      mode: "meta-training"
+
+    # evaluation environments
+    eval_env_kwargs:
+      <<: *env_kwargs 
+      mode: "all"
+
+    info_class: EnvInfoTrajInfo
 
 runner:
   class: MinibatchRlEval
@@ -16,6 +42,7 @@ agent:
     model: 
       class: CompressiveTransformer
       args:
+        sequence_len: 64
         size: medium
         linear_value_output: False
         separate_value_network: False

@@ -4,9 +4,9 @@ import os
 import random
 import numpy as np
 
-from base_metaworld import BaseMetaworld
+from environments.base_metaworld import BaseMetaworld
 from torchtext.vocab import GloVe
-from instructions import INSTRUCTIONS
+from environments.instructions import INSTRUCTIONS
 
 
 class LanguageMetaworld(BaseMetaworld):

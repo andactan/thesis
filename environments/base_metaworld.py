@@ -3,8 +3,8 @@ import time
 import mujoco_py
 import numpy as np
 
-from benchmarks import BENCHMARKS
-from policies import POLICIES
+from environments.benchmarks import BENCHMARKS
+from environments.policies import POLICIES
 
 
 class BaseMetaworld(gym.Env):

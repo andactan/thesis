@@ -2,7 +2,7 @@ from gym import Wrapper
 
 
 
-class EnvInfoWrapper(Wrapper):
+class CustomEnvInfoWrapper(Wrapper):
     """Gym-style environment wrapper to infill the `env_info` dict of every
     ``step()`` with a pre-defined set of examples, so that `env_info` has
     those fields at every step and they are made available to the algorithm in

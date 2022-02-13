@@ -35,6 +35,10 @@ sampler:
 
 runner:
   class: MinibatchRlEval
+  args:
+    n_cpu_core: 0.25
+    n_gpu: 0
+    set_affinity: False 
 
 agent:
   class: VMPOAgent

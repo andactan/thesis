@@ -10,7 +10,7 @@ from misc.traj_infos import EnvInfoTrajInfo
 
 
 def metaworld_env_wrapper(**kwargs):
-    info_example = {'timeout': 0}
+    info_example = {"timeout": 0}
     env = LanguageMetaworld(**kwargs)
 
     return GymEnvWrapper(CustomEnvInfoWrapper(env, info_example))
@@ -38,8 +38,8 @@ def set_experiment(config):
             importlib.import_module("rlpyt.samplers.parallel.cpu.sampler"), sampler_cls
         )
 
-    sampler_cls_kwargs = config['sampler']['args']
-    sampler_cls_kwargs['TrajInfoCls'] = EnvInfoTrajInfo
+    sampler_cls_kwargs = config["sampler"]["args"]
+    sampler_cls_kwargs["TrajInfoCls"] = EnvInfoTrajInfo
     sampler = SamplerCls(**sampler_cls_kwargs, EnvCls=metaworld_env_wrapper)
 
     # load algorithm
@@ -53,38 +53,36 @@ def set_experiment(config):
     agent_kwargs = config["agent"]["args"]
     agent_kwargs = {
         "ModelCls": agent_kwargs["model"]["class"],
-        "model_kwargs": agent_kwargs["model"]["args"]
+        "model_kwargs": agent_kwargs["model"]["args"],
     }
-    agent, prefix = agent_cls.lower().split("agent")[0], "agent"
-    AgentCls = getattr(importlib.import_module(f"agents.{agent}_{prefix}"), agent_cls)
+    agent_model, prefix = agent_cls.lower().split("agent")[0], "agent"
+    AgentCls = getattr(importlib.import_module(f"agents.{agent_model}_{prefix}"), agent_cls)
     agent = AgentCls(**agent_kwargs)
 
-    # # load runner class
-    # runner_cls = config["runner"]["class"]
+    # load runner class
+    runner_cls = config["runner"]["class"]
 
-    # if "async" in runner_cls.lower():
-    #     RunnerCls = getattr(importlib.import_module("rlpyt.runners.async_rl"), runner_cls)
+    if "async" in runner_cls.lower():
+        RunnerCls = getattr(importlib.import_module("rlpyt.runners.async_rl"), runner_cls)
 
-    # else:
-    #     RunnerCls = getattr(importlib.import_module("rlpyt.runners.minibatch_rl"), runner_cls)
+    else:
+        RunnerCls = getattr(importlib.import_module("rlpyt.runners.minibatch_rl"), runner_cls)
 
-    # # load agent model
-    # agent_model_cls = config["agent"]["args"]["model"]["class"]
-    # ModelCls = getattr(importlib.import_module("models"), agent_model_cls)
-    # models_kwargs = config["agent"]["args"]["model"]["args"]
+    runner_cls_kwargs = config["runner"]["args"]
+    runner_affinity_kwargs = config["runner"]["affinity"]
+    runner_affinity_kwargs["n_cpu_core"] = (
+        int(multiprocessing.cpu_count() * runner_affinity_kwargs["n_cpu_core"])
+    )
 
-    # # load runner
-    # runner_cls = config["runner"]["class"]
-    # RunnerCls = getattr(
-    #     importlib.import_module(
-    #         f'rlpyt.runners.{runner_cls.lower().split("eval")[0].split("rl")[0]}_rl'
-    #     ),
-    #     runner_cls,
-    # )
-    # runner_cls_kwargs = config["runner"]["args"]
-    # runner_cls_kwargs["n_cpu_core"] = multiprocessing.cpu_count() * runner_cls_kwargs["n_cpu_core"]
-    # affinity = make_affinity(**runner_cls_kwargs)
+    # cast float values to int
+    runner_cls_kwargs['n_steps'] = int(runner_cls_kwargs['n_steps'])
+    runner_cls_kwargs['log_interval_steps'] = int(runner_cls_kwargs['log_interval_steps'])
+    affinity = make_affinity(**runner_affinity_kwargs)
+    runner = RunnerCls(
+        algo=algorithm, agent=agent, sampler=sampler, affinity=affinity, **runner_cls_kwargs
+    )
 
-if __name__ == '__main__':
-    config = read_config('experiment.yaml')
+
+if __name__ == "__main__":
+    config = read_config("experiment.yaml")
     set_experiment(config=config)

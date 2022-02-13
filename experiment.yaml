@@ -33,11 +33,14 @@ sampler:
 
 runner:
   class: MinibatchRlEval
-  args:
+  affinity:
     n_cpu_core: 0.25
     n_gpu: 0
     set_affinity: False 
-
+  args:
+    n_steps: 4.0e+8
+    log_interval_steps: 5.0e+6
+  
 agent:
   class: VMPOAgent
   args:

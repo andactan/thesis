@@ -1,22 +1,22 @@
 global:
-  sequence_len: &sequence_len 64
+  sequence_len: &sequence_len 16
   benchmark: &benchmark ml10
 
 algorithm:
   class: VMPO
   args:
     epochs: 2
-    minibatch: 1
-    pop_art: True
+    minibatches: 1
+    pop_art_reward_normalization: True
 
 sampler:
   class: CpuSampler
   args:
     batch_T: *sequence_len
-    batch_B: 22 * 12
-    eval_n_envs: 22 * 4
-    eval_max_steps: 1e+34
-    eval_max_trajectories: 22 * 4 * 4
+    batch_B: 1
+    eval_n_envs: 1
+    eval_max_steps: 100
+    eval_max_trajectories: 100
     
     # sampling environments
     env_kwargs: &env_kwargs
@@ -31,8 +31,6 @@ sampler:
       <<: *env_kwargs 
       mode: "all"
 
-    info_class: EnvInfoTrajInfo
-
 runner:
   class: MinibatchRlEval
   args:
@@ -46,7 +44,7 @@ agent:
     model: 
       class: CompressiveTransformer
       args:
-        sequence_len: 64
+        sequence_len: *sequence_len
         size: medium
         linear_value_output: False
         separate_value_network: False

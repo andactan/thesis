@@ -53,7 +53,7 @@ class PopArtLayer(torch.nn.Module):
         # initialize bias
         if self.bias is not None:
             fan_in, _ = torch.nn.init._calculate_fan_in_and_fan_out(
-                self.weight)
+                self.weights)
             bound = 1 / math.sqrt(fan_in)
             torch.nn.init.uniform_(self.bias, -bound, bound)
 

@@ -34,7 +34,7 @@ sampler:
 runner:
   class: MinibatchRlEval
   affinity:
-    n_cpu_core: 0.25
+    n_cpu_core: 0.1
     n_gpu: 0
     set_affinity: False 
   args:
@@ -45,9 +45,8 @@ agent:
   class: VMPOAgent
   args:
     model: 
-      class: CompressiveTransformer
+      class: VMPOModel
       args:
         sequence_len: *sequence_len
         size: medium
         linear_value_output: False
-        separate_value_network: False

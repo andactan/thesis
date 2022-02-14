@@ -24,7 +24,6 @@ def read_config(filename):
 
 
 def set_experiment(config):
-
     # load sampler class
     sampler_cls = config["sampler"]["class"]
 
@@ -52,7 +51,7 @@ def set_experiment(config):
     agent_cls = config["agent"]["class"]
     agent_kwargs = config["agent"]["args"]
     agent_kwargs = {
-        "ModelCls": agent_kwargs["model"]["class"],
+        "ModelCls": getattr(importlib.import_module("models"), agent_kwargs['model']['class']),
         "model_kwargs": agent_kwargs["model"]["args"],
     }
     agent_model, prefix = agent_cls.lower().split("agent")[0], "agent"
@@ -70,17 +69,20 @@ def set_experiment(config):
 
     runner_cls_kwargs = config["runner"]["args"]
     runner_affinity_kwargs = config["runner"]["affinity"]
-    runner_affinity_kwargs["n_cpu_core"] = (
-        int(multiprocessing.cpu_count() * runner_affinity_kwargs["n_cpu_core"])
+    runner_affinity_kwargs["n_cpu_core"] = int(
+        multiprocessing.cpu_count() * runner_affinity_kwargs["n_cpu_core"]
     )
 
     # cast float values to int
-    runner_cls_kwargs['n_steps'] = int(runner_cls_kwargs['n_steps'])
-    runner_cls_kwargs['log_interval_steps'] = int(runner_cls_kwargs['log_interval_steps'])
+    runner_cls_kwargs["n_steps"] = int(runner_cls_kwargs["n_steps"])
+    runner_cls_kwargs["log_interval_steps"] = int(runner_cls_kwargs["log_interval_steps"])
     affinity = make_affinity(**runner_affinity_kwargs)
     runner = RunnerCls(
         algo=algorithm, agent=agent, sampler=sampler, affinity=affinity, **runner_cls_kwargs
     )
+
+    # start training
+    runner.train()
 
 
 if __name__ == "__main__":

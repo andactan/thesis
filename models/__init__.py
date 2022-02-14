@@ -1,1 +1,2 @@
 from models.compressive_transformer import CompressiveTransformer
+from models.vmpo_model import VMPOModel

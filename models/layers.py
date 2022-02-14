@@ -307,7 +307,7 @@ class SelfAttention(torch.nn.Module):
         if old_mem.shape[1] == 0 or self.cmem_len <= 0:
             return logits, Memory(new_mem, new_cmem), aux_loss
 
-        compressed_mem = self.compress_mem_fn(old_mem)
+        compressed_mem = self.compress_memory_fn(old_mem)
         old_cmem, new_cmem = split_at_index(
             1, -self.cmem_len, torch.cat((cmem, compressed_mem), dim=1)
         )
@@ -401,8 +401,8 @@ class CompressiveTransformer(torch.nn.Module):
                         SelfAttention(
                             dim,
                             sequence_len,
-                            memory_len,
-                            cmem_len,
+                            self.memory_len,
+                            self.cmem_len,
                             cmem_ratio,
                             heads,
                             dropout=dropout,

@@ -42,7 +42,7 @@ class LanguageMetaworld(BaseMetaworld):
         if self.demonstration_phase:
             instruction, instruction_end = self.get_instruction_word()
             full_observation = self.get_full_observation(
-                instruction_word=instruction)
+                instruction=instruction)
             self.demonstration_phase = not instruction_end
 
         else:
@@ -66,13 +66,14 @@ class LanguageMetaworld(BaseMetaworld):
             full_observation = self.get_full_observation(self.observation)
 
         # TODO: fill out the info parameter
+        done = self.num_trials_in_episode >= self.max_trials_per_episode
         return full_observation, reward_sum, done, {}
 
     def get_instruction_word(self):
         word = self.instruction[self.instruction_idx]
         if word == 'goal_pos':
             embedding = np.concatenate(
-                (self.env._get_pos_goal(), np.zeros(self.EMBED_DIM - 3)))
+                (self.env._get_pos_goal(), np.zeros(self.embed_dim - 3)))
         else:
             embedding = self.embeddings[word]
 

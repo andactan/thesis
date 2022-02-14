@@ -1,6 +1,7 @@
 import torch
 
 from rlpyt.agents.base import (BaseAgent, RecurrentAgentMixin, AgentStep)
+from rlpyt.agents.pg.mujoco import MujocoMixin
 from rlpyt.distributions.gaussian import Gaussian, DistInfoStd
 from rlpyt.agents.pg.base import AgentInfoRnn
 from rlpyt.utils.buffer import buffer_to, buffer_func, buffer_method
@@ -9,14 +10,14 @@ from rlpyt.utils.collections import namedarraytuple
 DistInfo = namedarraytuple("DistInfo", ["mean", 'std'])
 
 
-class VMPOAgent(RecurrentAgentMixin, BaseAgent):
+class VMPOAgent(MujocoMixin, RecurrentAgentMixin, BaseAgent):
     """Reference VMPO implementation for action selection
     """
 
     def initialize(self, env_spaces, share_memory=False, **kwargs):
         super().initialize(env_spaces, share_memory, **kwargs)
 
-        self.distribution = Gaussian(dim=env_spaces.action_shape[0])
+        self.distribution = Gaussian(dim=env_spaces.action.shape[0])
 
     def __call__(self, observation, previous_action, previous_reward, initial_rnn_state):
         """Performs forward call on training data for algorithm

@@ -30,7 +30,7 @@ class PopArtLayer(torch.nn.Module):
         input_shape = input.shape
         input = input.reshape(-1, self.input_dim)
 
-        normalized_output = input.mm(self.weight.t())
+        normalized_output = input.mm(self.weights.t())
         normalized_output += self.bias.unsqueeze(
             0).expand_as(normalized_output)
         normalized_output = normalized_output.reshape(
@@ -96,18 +96,18 @@ class PopArtLayer(torch.nn.Module):
         self.mu = (1 - self.beta) * self.mu + self.beta * mu
         self.sigma = (1 - self.beta) * self.sigma + self.beta * sigma
 
-        self.weight.data = (self.weight.t() * oldsigma / self.sigma).t()
+        self.weights.data = (self.weights.t() * oldsigma / self.sigma).t()
         self.bias.data = (oldsigma * self.bias + oldmu - self.mu) / self.sigma
 
     def state_dict(self):
         return dict(mu=self.mu,
                     sigma=self.sigma,
-                    weight=self.weight.data,
+                    weights=self.weights.data,
                     bias=self.bias.data)
 
     def load_state_dict(self, state_dict):
         with torch.no_grad():
             self.mu = state_dict['mu']
             self.sigma = state_dict['sigma']
-            self.weight.data = state_dict['weight']
+            self.weights.data = state_dict['weights']
             self.bias.data = state_dict['bias']

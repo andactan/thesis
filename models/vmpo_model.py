@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import layers
+import models.layers as layers
 
 from rlpyt.models.mlp import MlpModel
 from rlpyt.utils.collections import namedarraytuple
@@ -23,7 +23,7 @@ class VMPOModel(torch.nn.Module):
         observation_shape,
         action_size,
         linear_value_output=True,
-        sequence_length=64,
+        sequence_len=64,
         observation_normalization=True,
         size="medium",
     ) -> None:
@@ -32,7 +32,7 @@ class VMPOModel(torch.nn.Module):
         self.state_size = np.prod(observation_shape.state)  # memory state size
         self.action_size = action_size
         self.linear_value_output = linear_value_output
-        self.sequence_len = sequence_length
+        self.sequence_len = sequence_len
         self.observation_normalization = observation_normalization
         self.size = size
 
@@ -78,8 +78,9 @@ class VMPOModel(torch.nn.Module):
             output_size=1 if self.linear_value_output else None,
         )
 
-    def forward(self, observation, state):
-        lead_dim, T, B, _ = infer_leading_dims(observation.shape, 1)
+    #! to be compatible with forward call, prev_action and prew_reward must be included
+    def forward(self, observation, prev_action, prev_reward, state):
+        lead_dim, T, B, _ = infer_leading_dims(observation.state, 1)
         aux_loss = None
 
         if T == 1:

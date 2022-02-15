@@ -38,6 +38,9 @@ class LanguageMetaworld(BaseMetaworld):
             })
 
     def step(self, action):
+        from colorama import Fore
+        print(Fore.GREEN + '--> ENV STEP')
+
         reward_sum = 0
         if self.demonstration_phase:
             instruction, instruction_end = self.get_instruction_word()

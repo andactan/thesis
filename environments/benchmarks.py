@@ -75,7 +75,6 @@ class DemonstrationBenchmark(Benchmark):
     def sample_env_and_task(self):
         # randomly choose an environment
         env = random.choice(self._envs)
-        print('ENV ---> ', env)
         env_name, env = env
         global_env_id = self.class_idx[env_name]
 

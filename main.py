@@ -88,3 +88,8 @@ def set_experiment(config):
 if __name__ == "__main__":
     config = read_config("experiment.yaml")
     set_experiment(config=config)
+
+    # gg = 10
+    # for i in range(100):
+    #     print(i)
+    

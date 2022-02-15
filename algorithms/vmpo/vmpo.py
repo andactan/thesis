@@ -164,8 +164,9 @@ class VMPO(RlAlgorithm):
         advantage = advantage.clamp(min=-40, max=40)  # clamp due to numerical instability of exp function
 
         num_valid = valid.sum().type(torch.int32)
+        k = num_valid // 2 if num_valid > 1 else num_valid
         top_advantages, top_advantages_indeces = torch.topk((advantage.masked_fill(~valid.bool(), float('-inf'))).reshape(T * B),
-                                                            num_valid // 2)
+                                                            k)
         advantage_mask = torch.zeros_like(advantage.view(T * B))
         advantage_mask[top_advantages_indeces] = 1
         advantage_mask = advantage_mask.reshape(T, B)

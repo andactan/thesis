@@ -37,8 +37,6 @@ class VMPOAgent(MujocoMixin, RecurrentAgentMixin, BaseAgent):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
-        from colorama import Fore
-        print(Fore.RED + '--> AGENT STEP')
 
         agent_inputs = buffer_to(
             (observation, prev_action, prev_reward), device=self.device)

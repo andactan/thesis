@@ -2,7 +2,11 @@ import importlib
 import yaml
 import os
 import multiprocessing
+import time
+
+from datetime import datetime
 from rlpyt.utils.launching.affinity import make_affinity
+from rlpyt.utils.logging.context import logger_context
 from rlpyt.envs.gym import GymEnvWrapper
 from environments import LanguageMetaworld
 from misc import CustomEnvInfoWrapper
@@ -23,7 +27,7 @@ def read_config(filename):
         return config
 
 
-def set_experiment(config):
+def set_experiment(config, log_dir):
     # load sampler class
     sampler_cls = config["sampler"]["class"]
 
@@ -49,10 +53,10 @@ def set_experiment(config):
 
     # load agent class
     agent_cls = config["agent"]["class"]
-    agent_kwargs = config["agent"]["args"]
+    _agent_kwargs = config["agent"]["args"]
     agent_kwargs = {
-        "ModelCls": getattr(importlib.import_module("models"), agent_kwargs['model']['class']),
-        "model_kwargs": agent_kwargs["model"]["args"],
+        "ModelCls": getattr(importlib.import_module("models"), _agent_kwargs['model']['class']),
+        "model_kwargs": _agent_kwargs["model"]["args"],
     }
     agent_model, prefix = agent_cls.lower().split("agent")[0], "agent"
     AgentCls = getattr(importlib.import_module(f"agents.{agent_model}_{prefix}"), agent_cls)
@@ -81,13 +85,20 @@ def set_experiment(config):
         algo=algorithm, agent=agent, sampler=sampler, affinity=affinity, **runner_cls_kwargs
     )
 
-    # start training
-    runner.train()
+    run_id =  datetime.now().strftime('%d%m%y-%H%M%S')
+    name = f'{sampler_cls}-{runner_cls}-{algo_cls}-{agent_cls}-{_agent_kwargs["model"]["class"]}'
+    
+    with logger_context(log_dir, run_id, name, config, snapshot_mode='last'):
+        # start training
+        runner.train()
 
 
 if __name__ == "__main__":
     config = read_config("experiment.yaml")
-    set_experiment(config=config)
+    set_experiment(config=config, log_dir='experiments')
+
+    # from datetime import datetime
+    # print(datetime.now().strftime('%d%m%y-%H%M%S'))
 
     # gg = 10
     # for i in range(100):

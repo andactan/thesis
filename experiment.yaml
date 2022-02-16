@@ -1,5 +1,5 @@
 global:
-  sequence_len: &sequence_len 16
+  sequence_len: &sequence_len 20
   benchmark: &benchmark ml10
 
 algorithm:
@@ -13,7 +13,7 @@ sampler:
   class: CpuSampler
   args:
     batch_T: *sequence_len
-    batch_B: 1
+    batch_B: 5
     eval_n_envs: 1
     eval_max_steps: 100
     eval_max_trajectories: 100
@@ -38,8 +38,8 @@ runner:
     n_gpu: 0
     set_affinity: False 
   args:
-    n_steps: 4.0e+8
-    log_interval_steps: 5.0e+6
+    n_steps: 5.0e+6 # total number of training steps
+    log_interval_steps: 5.0e+2
   
 agent:
   class: VMPOAgent

@@ -38,8 +38,8 @@ runner:
     n_gpu: 0
     set_affinity: False 
   args:
-    n_steps: 5.0e+6 # total number of training steps
-    log_interval_steps: 5.0e+2
+    n_steps: 5.0e+2 # total number of training steps
+    log_interval_steps: 5.0e+1
   
 agent:
   class: VMPOAgent

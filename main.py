@@ -87,7 +87,9 @@ def set_experiment(config, log_dir):
 
     run_id =  datetime.now().strftime('%d%m%y-%H%M%S')
     name = f'{sampler_cls}-{runner_cls}-{algo_cls}-{agent_cls}-{_agent_kwargs["model"]["class"]}'
-    
+
+    # point the log directory explicitly, otherwise it is gonna be saved in rlpyt itself
+    log_dir = os.path.join(os.getcwd(), log_dir)
     with logger_context(log_dir, run_id, name, config, snapshot_mode='last'):
         # start training
         runner.train()

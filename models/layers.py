@@ -393,6 +393,9 @@ class CompressiveTransformer(torch.nn.Module):
 
         # attention layers
         wrapper = partial(GRUGating, dim, mogrify=mogrify_gru) if gru_gated_residual else Residual
+
+        #! refactor and separate norm and attention layers
+        #! change here for Metaformer
         self.attention_layers = torch.nn.ModuleList(
             [
                 wrapper(
@@ -416,6 +419,7 @@ class CompressiveTransformer(torch.nn.Module):
             ]
         )
 
+        #! refactor and separate norm and FF layers
         # feed forward layers
         self.ff_layers = torch.nn.ModuleList(
             [

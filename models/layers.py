@@ -114,7 +114,7 @@ class GRUTypeGate(torch.nn.Module):
         g = (1 - z) * x + z * h
         return g
 
-
+# residual connection
 class GRUGating(torch.nn.Module):
     def __init__(self, dim, fn, mogrify=False):
         super().__init__()

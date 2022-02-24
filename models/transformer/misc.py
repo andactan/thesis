@@ -11,14 +11,13 @@ class Residual(torch.nn.Module):
         self.norm_layer = torch.nn.LayerNorm(dim)
         self.dropout_layer = torch.nn.Dropout(dropout)
 
-
     def forward(self, *tensors):
-        '''
-            Assume that the ordering of the tensors is as follows:
-            1. query
-            2. key
-            3. value
-        '''
+        """
+        Assume that the ordering of the tensors is as follows:
+        1. query
+        2. key
+        3. value
+        """
 
         return self.norm_layer(tensors[0] + self.dropout_layer(self.sublayer(*tensors)))
 
@@ -33,9 +32,9 @@ class FeedForward(torch.nn.Module):
 
         self.input_layer = torch.nn.Linear(self.input_dim, self.hidden_dim[0])
         self.output_layer = torch.nn.Linear(self.hidden_dim[-1], self.output_dim)
-        
+
         self.hidden_layers = []
-        if len(self.hidden_dim) > 1:   
+        if len(self.hidden_dim) > 1:
             for fan_in, fan_out in zip(self.hidden_dim[:-1], self.hidden_dim[1:]):
                 self.hidden_layers.append((torch.nn.Linear(fan_in, fan_out), torch.nn.ReLU()))
 

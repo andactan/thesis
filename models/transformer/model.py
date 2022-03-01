@@ -8,11 +8,13 @@ class Transformer(torch.nn.Module):
         self,
         num_encoder_layers=6,
         num_decoder_layers=6,
-        num_heads=6,
+        num_heads=4,
         input_dim=512,
         output_dim=512,
         feedforward_dim=2048,
-        dropout=0.1
+        dropout=0.1,
+        src_vocab_size=None,
+        trgt_vocab_size=None
     ) -> None:
         super().__init__()
 
@@ -30,7 +32,8 @@ class Transformer(torch.nn.Module):
             input_dim=self.input_dim,
             output_dim=self.output_dim,
             feedforward_dim=self.feedforward_dim,
-            dropout=self.dropout
+            dropout=self.dropout,
+            vocab_size=src_vocab_size
         )
 
         self.decoder = TransformerDecoder(
@@ -39,8 +42,10 @@ class Transformer(torch.nn.Module):
             input_dim=self.input_dim,
             output_dim=self.output_dim,
             feedforward_dim=self.feedforward_dim,
-            dropout=self.dropout
+            dropout=self.dropout,
+            vocab_size=trgt_vocab_size
         )
 
     def forward(self, target, source):
-        return self.decoder(target, self.encoder(source))
+        temp = self.encoder(source)
+        return self.decoder(target, temp)

@@ -76,6 +76,7 @@ class TransformerDecoder(torch.nn.Module):
         output_dim=512,
         feedforward_dim=2048,
         dropout=0.1,
+        vocab_size=None
     ) -> None:
         super().__init__()
 
@@ -85,6 +86,9 @@ class TransformerDecoder(torch.nn.Module):
         self.output_dim = output_dim
         self.feedforward_dim = feedforward_dim
         self.dropout = dropout
+
+        # layers
+        self.embedding = torch.nn.Embedding(vocab_size, input_dim)
 
         self.layers = torch.nn.ModuleList(
             [
@@ -102,6 +106,7 @@ class TransformerDecoder(torch.nn.Module):
         self.linear = torch.nn.Linear(self.input_dim, self.output_dim)
 
     def forward(self, x, y):
+        x = self.embedding(x)
         sequence_len, dim = x.size(1), x.size(2)
         out = x + positional_encoding(sequence_len, dim)
 

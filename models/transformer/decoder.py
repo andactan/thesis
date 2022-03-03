@@ -76,7 +76,8 @@ class TransformerDecoder(torch.nn.Module):
         output_dim=512,
         feedforward_dim=2048,
         dropout=0.1,
-        vocab_size=None
+        vocab_size=None,
+        device=torch.device('cpu')
     ) -> None:
         super().__init__()
 
@@ -86,6 +87,7 @@ class TransformerDecoder(torch.nn.Module):
         self.output_dim = output_dim
         self.feedforward_dim = feedforward_dim
         self.dropout = dropout
+        self.device = device
 
         # layers
         self.embedding = torch.nn.Embedding(vocab_size, input_dim)
@@ -103,14 +105,14 @@ class TransformerDecoder(torch.nn.Module):
             ]
         )
 
-        self.linear = torch.nn.Linear(self.input_dim, self.output_dim)
+        self.linear = torch.nn.Linear(self.input_dim, vocab_size)
 
     def forward(self, x, y):
         x = self.embedding(x)
         sequence_len, dim = x.size(1), x.size(2)
-        out = x + positional_encoding(sequence_len, dim)
+        out = x + positional_encoding(sequence_len, dim, device=self.device)
 
         for layer in self.layers:
             out = layer(x, y)
 
-        return torch.softmax(self.linear(out), dim=-1)
+        return self.linear(out)

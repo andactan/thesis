@@ -4,6 +4,7 @@ import re
 import os
 import numpy as np
 import torch
+import time
 
 from torch.utils.data import DataLoader, Dataset, SubsetRandomSampler
 from torch.nn.utils.rnn import pad_sequence
@@ -11,6 +12,7 @@ from torchtext.vocab import build_vocab_from_iterator, vocab
 from torchtext.data.utils import get_tokenizer
 from collections import Counter
 from models.transformer.model import Transformer
+from torch.utils.tensorboard import SummaryWriter
 
 
 def tokenize(sentence, nlp):
@@ -163,11 +165,8 @@ def collate_fn(batch, padding_value):
 
     return sources, targets
 
-src = torch.ones(4, 8)
-trg = torch.ones(4, 9)
 
-print([src, trg])
-        
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")        
 
 dataset = TranslationDataset(root_dir_src='sentences_en.pkl', root_dir_trgt='sentences_fr.pkl')
 
@@ -188,7 +187,7 @@ test_sampler = SubsetRandomSampler(test_indices)
 train_loader = DataLoader(
     dataset=dataset,
     sampler=train_sampler,
-    batch_size=4,
+    batch_size=128,
     shuffle=False,
     collate_fn=collate_batch
 )
@@ -196,18 +195,48 @@ train_loader = DataLoader(
 test_loader = DataLoader(
     dataset=dataset,
     sampler=test_sampler,
-    batch_size=4,
+    batch_size=32,
     shuffle=False,
     collate_fn=collate_batch
 )
 
+
+# setup tensorboard
+writer = SummaryWriter('runs/loss_plot')
+
 # create the model
 model = Transformer(
     src_vocab_size=len(dataset.vocab_src),
-    trgt_vocab_size=len(dataset.vocab_trgt)
-)
+    trgt_vocab_size=len(dataset.vocab_trgt),
+    device=device
+).to(device)
 
-for idx, (source, target) in enumerate(train_loader):
-    print(target.size(), source.size())
-    y = model(target.transpose(0, 1), source.transpose(0, 1))
-    
+num_epochs = 5
+
+criterion = torch.nn.CrossEntropyLoss(ignore_index=dataset.vocab_src.stoi['<PAD>'])
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+for epoch in range(num_epochs):
+    print(f'Epoch {epoch+1} / {num_epochs}')
+
+    for batch_idx, batch in enumerate(train_loader):
+        print(f'Processing {batch_idx+1} / {len(train_loader)}')
+        source = batch[0].transpose(0, 1).to(device)
+        target = batch[1].transpose(0, 1).to(device)
+
+        # forward prop
+        output = model(target[:, :-1], source)
+        output = output.reshape(-1, output.shape[2])
+        target = target[:, 1:].reshape(-1)
+
+        start = time.time()
+        optimizer.zero_grad()
+
+        loss = criterion(output, target)
+        loss.backward()
+
+        optimizer.step()
+        end = time.time()
+
+        writer.add_scalar('Training Loss', loss, global_step=batch_idx*(epoch+1))
+        print(f'Loss: {loss} -- took {end-start} sec(s)')

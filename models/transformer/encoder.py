@@ -23,7 +23,7 @@ class TransformerEncoderLayer(torch.nn.Module):
         key_dim=None,
         value_dim=None,
         dropout=0.1,
-        feedforward_dim=2048
+        feedforward_dim=2048,
     ) -> None:
         super().__init__()
 
@@ -72,6 +72,7 @@ class TransformerEncoder(torch.nn.Module):
         vocab_size=None,
         feedforward_dim=2048,
         dropout=0.1,
+        device=torch.device('cpu')
     ) -> None:
         super().__init__()
 
@@ -81,6 +82,7 @@ class TransformerEncoder(torch.nn.Module):
         self.output_dim = output_dim
         self.feedforward_dim = feedforward_dim
         self.dropout = dropout
+        self.device = device
 
         # layers
         self.embedding = torch.nn.Embedding(vocab_size, input_dim)
@@ -101,7 +103,7 @@ class TransformerEncoder(torch.nn.Module):
     def forward(self, x):
         x = self.embedding(x)
         sequence_len, dim = x.size(1), x.size(2)
-        x += positional_encoding(sequence_len, dim)
+        x += positional_encoding(sequence_len, dim, device=self.device)
 
         for layer in self.layers:
             x = layer(x)

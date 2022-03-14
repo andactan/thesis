@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from models.transformer.misc import Residual, FeedForward
+from models.layers.misc import Residual, FeedForward
 from models.transformer.multi_head_attention import MultiHeadAttentionLayer
 
 

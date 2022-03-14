@@ -1,7 +1,7 @@
 import torch
 
 from models.transformer.multi_head_attention import MultiHeadAttentionLayer
-from models.transformer.misc import FeedForward, Residual
+from models.layers.misc import FeedForward, Residual
 from models.transformer.utils import positional_encoding
 
 

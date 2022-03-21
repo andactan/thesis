@@ -1,9 +1,9 @@
 import torch
 import torch.nn.functional as F
 from multi_head_attention import AttentionHead, MultiHeadAttentionLayer
-from misc import FeedForward
+import misc
 
-
+# TODO add residual connections
 class RelativeMultiHeadAttention(torch.nn.Module):
     def __init__(
         self,
@@ -32,8 +32,6 @@ class RelativeMultiHeadAttention(torch.nn.Module):
         self.dropout = dropout
         self.pre_lnorm = pre_lnorm
         self.dim_out = self.num_heads * self.dim_head
-
-
 
         # query-key-value net
         self.qkv = torch.nn.Linear(self.dim_input, 3 * self.dim_out, bias=False)
@@ -66,6 +64,7 @@ class RelativeMultiHeadAttention(torch.nn.Module):
         # r_w_bias ==> bias_q
         # r_r_bias ==> bias_k
 
+        # TODO remove unnecessary variables
         query_len, pos_len, batch_size = word_embed.size(0), pos_embed.size(0), word_embed.size(1)
 
         # append memories if not None
@@ -115,6 +114,269 @@ class RelativeMultiHeadAttention(torch.nn.Module):
         return x
 
 
+class AdaptiveEmbedding(torch.nn.Module):
+    """Implementation of 'Adaptive Input Representations for Neural Language Modeling'"""
+
+    def __init__(
+        self, num_tokens, dim_embed, dim_proj, cutoffs, div_val=1, sample_softmax=False
+    ) -> None:
+        super().__init__()
+
+        self.num_tokens = num_tokens
+        self.dim_embed = dim_embed
+        self.dim_proj = dim_proj
+        self.cutoffs = cutoffs + [num_tokens]
+        self.div_val = div_val
+        self.sample_softmax = sample_softmax
+
+        # derivations
+        self.embedding_scale = self.dim_proj ** 0.5
+        self.cutoff_ends = [0] + self.cutoffs
+
+        # layers
+        self.embedding_layers = torch.nn.ModuleList()
+        self.embedding_projs = torch.nn.ParameterList()
+
+        if self.div_val == 1:
+            self.embedding_layers.append(
+                torch.nn.Embedding(num_tokens, dim_embed, sparse=self.sample_softmax > 0)
+            )
+
+            if self.dim_proj != self.dim_embed:
+                self.embedding_projs.append(
+                    torch.nn.Parameter(torch.Tensor(self.dim_proj, self.dim_embed))
+                )
+
+        else:
+            for i in range(len(self.cutoffs)):
+                left_idx, right_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
+                dim_embed_ith = self.dim_embed // (self.div_val ** i)
+
+                self.embedding_layers.append(
+                    torch.nn.Embedding(right_idx - left_idx, dim_embed_ith)
+                )
+                self.embedding_projs.append(
+                    torch.nn.Parameter(torch.Tensor(self.dim_proj, dim_embed_ith))
+                )
+
+    def forward(self, input_):
+        """Forward method
+
+        Args:
+            input_ (torch.Tensor): input
+
+        Returns:
+            torch.Tensor: adaptive embedding of the word sequence
+        """
+        if self.div_val == 1:
+            embed = self.embedding_layers[0](input_)
+            if self.dim_proj != self.dim_embed:
+                embed = F.linear(embed, self.embedding_projs[0])
+        else:
+            param = next(self.parameters())
+            inp_flat = input_.view(-1)
+            emb_flat = torch.zeros(
+                [inp_flat.size(0), self.dim_proj], dtype=param.dtype, device=param.device
+            )
+            for i in range(len(self.cutoffs)):
+                l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
+
+                mask_i = (inp_flat >= l_idx) & (inp_flat < r_idx)
+                indices_i = mask_i.nonzero().squeeze()
+
+                if indices_i.numel() == 0:
+                    continue
+
+                inp_i = inp_flat.index_select(0, indices_i) - l_idx
+                emb_i = self.embedding_layers[i](inp_i)
+                emb_i = F.linear(emb_i, self.embedding_projs[i])
+
+                emb_flat.index_copy_(0, indices_i, emb_i)
+
+            embed = emb_flat.view(*input_.size(), self.dim_proj)
+
+        embed.mul_(self.embedding_scale)
+
+        return embed
+
+
+class TransformerXL(torch.nn.Module):
+    def __init__(
+        self,
+        num_tokens,
+        num_layers,
+        num_heads,
+        dim_model,
+        dim_head,
+        dim_inner,
+        dropout,
+        dim_embed=None,
+        tie_weight=True,
+        div_val=1,
+        tie_projs=[False],
+        pre_lnorm=False,
+        tgt_len=None,
+        ext_len=None,
+        mem_len=None,
+        cutoffs=None,
+        adaptive_input=False,
+        same_length=False,
+        attention_type=0,
+        clamp_len=-1,
+        sample_softmax=-1,
+    ) -> None:
+        super().__init__()
+
+        self.num_tokens = num_tokens
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.dim_model = dim_model
+        self.dim_head = dim_head
+        self.dim_inner = dim_inner
+        self.dropout = dropout
+        self.dim_embed = dim_model if dim_embed is None else dim_embed
+        self.tie_weight = tie_weight
+        self.div_val = div_val
+        self.tie_projs = tie_projs
+        self.pre_lnorm = pre_lnorm
+        self.tgt_len = tgt_len
+        self.ext_len = ext_len
+        self.mem_len = mem_len
+        self.cutoffs = cutoffs
+        self.adaptive_input = adaptive_input
+        self.same_length = same_length
+        self.attention_type = attention_type
+        self.clamp_len = clamp_len
+        self.sample_softmax = sample_softmax
+
+        # derivations
+        self.max_klen = self.tgt_len + self.ext_len + self.mem_len
+
+        # word embeddings
+        self.word_embedding = AdaptiveEmbedding(
+            num_tokens=self.num_tokens,
+            dim_embed=self.dim_embed,
+            dim_proj=self.dim_model,
+            cutoffs=self.cutoffs,
+            div_val=self.div_val,
+        )
+
+        # positional embeddings
+        self.pos_embedding = misc.PositionalEmbedding(self.dim_model)
+
+        # r_w_bias ==> bias_q
+        # r_r_bias ==> bias_k
+        self.bias_q = torch.nn.Parameter(torch.Tensor(self.num_heads, self.dim_head))
+        self.bias_k = torch.nn.Parameter(torch.Tensor(self.num_heads, self.dim_head))
+
+        # dropout
+        self.dropout = torch.nn.Dropout(self.dropout)
+
+        # decoders (only use 'attention_type' of '0')
+        self.decoders = torch.nn.ModuleList(
+            [
+                RelativeAttentionDecoderLayer(
+                    num_heads=self.num_heads,
+                    dim_input=self.dim_model,
+                    dim_head=self.dim_head,
+                    dropout=self.dropout,
+                )
+                for _ in range(self.num_layers)
+            ]
+        )
+
+        # output layer
+        self.out_layer = torch.nn.Linear(self.dim_model, self.num_tokens)
+
+    def _reset_lengths(self, tgt_len, ext_len, mem_len):
+        self.tgt_len = tgt_len
+        self.ext_len = ext_len
+        self.mem_len = mem_len
+
+    def _init_memory(self):
+        memory = None
+
+        if self.mem_len > 0:
+            memory = []
+            param = next(self.parameters())
+
+            for _ in range(self.num_layers + 1):
+                empty = torch.empty(0, dtype=param.dtype, device=param.device)
+                memory.append(empty)
+
+        return memory
+
+    def _update_memory(self, hiddens, memory, qlen, mlen):
+        # does not deal with None
+        if memory is None:
+            return None
+
+        with torch.no_grad():
+            new_memory = []
+            end_idx = mlen + max(0, qlen - self.ext_len)
+            start_idx = max(0, end_idx - self.mem_len)
+
+            for i in range(len(hiddens)):
+                cat = torch.cat([memory[i], hiddens[i]], dim=0)
+                new_memory.append(cat[start_idx:end_idx].detach())
+
+        return new_memory
+
+    def forward_(self, input_, memory=None):
+        sequence_len, batch_size = input_.size()
+        word_embedding = self.word_embedding(input_)
+        pos_embedding = self.pos_embedding(sequence_len, clamp=self.clamp_len)
+
+        memory_len = memory[0].size(0) if memory is not None else 0
+        context_len = sequence_len + memory_len
+
+        # TODO generate input masks
+
+        # apply dropouts after embedding layers
+        out = self.dropout(word_embedding)
+        pos_embedding = self.dropout(pos_embedding)
+
+        hiddens = [out]
+        for idx, layer in enumerate(self.decoders):
+            memory_ith = memory[idx] if memory is not None else None
+            out = layer(out, pos_embedding, self.bias_q, self.bias_k, mems=memory_ith)
+            hiddens.append(out)
+
+        # apply dropout before return
+        out = self.dropout(out)
+        new_memory = self._update_memory(
+            hiddens=hiddens, memory=memory, qlen=sequence_len, mlen=memory_len
+        )
+
+        return out, new_memory
+
+    def forward(self, source, target, *memory):
+        if not memory:
+            memory = self._init_memory()
+
+        tgt_len = target.size(0)
+        hidden, new_memory = self.forward_(source, memory=memory)
+
+        pred_hidden = hidden[-tgt_len:]
+        if self.sample_softmax > 0 and self.training:
+            assert self.tie_weight
+
+            logits = sample_logits(
+                self.word_embedding, self.out_layer.bias, target, pred_hidden, self.sampler
+            )
+
+            loss = -F.log_softmax(logits, -1)[:, :, 0]
+
+        else:
+            loss = self.crit(pred_hidden.view(-1, pred_hidden.size(-1)), target.view(-1))
+            loss = loss.view(tgt_len, -1)
+
+        if new_memory is None:
+            return [loss]
+        else:
+            return [loss] + new_memory
+
+
 class RelativeAttentionDecoderLayer(torch.nn.Module):
     def __init__(
         self,
@@ -142,7 +404,7 @@ class RelativeAttentionDecoderLayer(torch.nn.Module):
             pre_lnorm=self.pre_lnorm,
         )
 
-        self.ff = FeedForward(
+        self.ff = misc.FeedForward(
             input_dim=self.dim_input, output_dim=self.dim_input, hidden_dim=self.dim_ff
         )
 
@@ -155,203 +417,8 @@ class RelativeAttentionDecoderLayer(torch.nn.Module):
 
         return out
 
-# TODO: compare original implementation and refactored one
 
-import random
-import numpy as np
+if __name__ == "__main__":
+    import misc
 
-seed = 123
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-np.random.seed(seed)
-random.seed(seed)
-
-num_heads = 2
-dim_input = 200
-dim_head = 2
-
-word_embed = torch.ones(36, 4, 200)
-pos_embed = torch.ones(36, 1, 200)
-bias_q = torch.ones(1, num_heads * dim_head)
-bias_k = torch.ones(1, num_heads * dim_head)
-
-import torch.nn as nn
-
-class RelMultiHeadAttn(nn.Module):
-    def __init__(self, n_head, d_model, d_head, dropout, dropatt=0,
-                 tgt_len=None, ext_len=None, mem_len=None, pre_lnorm=False):
-        super(RelMultiHeadAttn, self).__init__()
-
-        self.n_head = n_head
-        self.d_model = d_model
-        self.d_head = d_head
-        self.dropout = dropout
-
-        self.qkv_net = nn.Linear(d_model, 3 * n_head * d_head, bias=False)
-
-        self.drop = nn.Dropout(dropout)
-        self.dropatt = nn.Dropout(dropatt)
-        self.o_net = nn.Linear(n_head * d_head, d_model, bias=False)
-
-        self.layer_norm = nn.LayerNorm(d_model)
-
-        self.scale = 1 / (d_head ** 0.5)
-
-        self.pre_lnorm = pre_lnorm
-
-    def _parallelogram_mask(self, h, w, left=False):
-        mask = torch.ones((h, w)).byte()
-        m = min(h, w)
-        mask[:m,:m] = torch.triu(mask[:m,:m])
-        mask[-m:,-m:] = torch.tril(mask[-m:,-m:])
-
-        if left:
-            return mask
-        else:
-            return mask.flip(0)
-
-    def _shift(self, x, qlen, klen, mask, left=False):
-        if qlen > 1:
-            zero_pad = torch.zeros((x.size(0), qlen-1, x.size(2), x.size(3)),
-                                    device=x.device, dtype=x.dtype)
-        else:
-            zero_pad = torch.zeros(0, device=x.device, dtype=x.dtype)
-
-        if left:
-            mask = mask.flip(1)
-            x_padded = torch.cat([zero_pad, x], dim=1).expand(qlen, -1, -1, -1)
-        else:
-            x_padded = torch.cat([x, zero_pad], dim=1).expand(qlen, -1, -1, -1)
-
-        x = x_padded.masked_select(mask[:,:,None,None]) \
-                    .view(qlen, klen, x.size(2), x.size(3))
-
-        return x
-
-    def _rel_shift(self, x, zero_triu=False):
-        zero_pad = torch.zeros((x.size(0), 1, *x.size()[2:]),
-                               device=x.device, dtype=x.dtype)
-        x_padded = torch.cat([zero_pad, x], dim=1)
-
-        x_padded = x_padded.view(x.size(1) + 1, x.size(0), *x.size()[2:])
-
-        x = x_padded[1:].view_as(x)
-
-        if zero_triu:
-            ones = torch.ones((x.size(0), x.size(1)))
-            x = x * torch.tril(ones, x.size(1) - x.size(0))[:,:,None,None]
-
-        return x
-
-    def forward(self, w, r, attn_mask=None, mems=None):
-        raise NotImplementedError
-
-class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
-    def __init__(self, *args, **kwargs):
-        super(RelPartialLearnableMultiHeadAttn, self).__init__(*args, **kwargs)
-
-        self.r_net = nn.Linear(self.d_model, self.n_head * self.d_head, bias=False)
-
-    def forward(self, w, r, r_w_bias, r_r_bias, attn_mask=None, mems=None):
-        qlen, rlen, bsz = w.size(0), r.size(0), w.size(1)
-        print(qlen)
-
-        if mems is not None:
-            cat = torch.cat([mems, w], 0)
-            if self.pre_lnorm:
-                w_heads = self.qkv_net(self.layer_norm(cat))
-            else:
-                w_heads = self.qkv_net(cat)
-            r_head_k = self.r_net(r)
-
-            w_head_q, w_head_k, w_head_v = torch.chunk(w_heads, 3, dim=-1)
-            w_head_q = w_head_q[-qlen:] # get activations only for sequence, freeze others
-        else:
-            if self.pre_lnorm:
-                w_heads = self.qkv_net(self.layer_norm(w))
-            else:
-                w_heads = self.qkv_net(w)
-            r_head_k = self.r_net(r)
-
-            w_head_q, w_head_k, w_head_v = torch.chunk(w_heads, 3, dim=-1)
-
-        klen = w_head_k.size(0)
-
-        w_head_q = w_head_q.view(qlen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
-        w_head_k = w_head_k.view(klen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
-        w_head_v = w_head_v.view(klen, bsz, self.n_head, self.d_head)           # qlen x bsz x n_head x d_head
-
-        r_head_k = r_head_k.view(rlen, self.n_head, self.d_head)                # qlen x n_head x d_head
-
-        #### compute attention score
-        rw_head_q = w_head_q + r_w_bias                                         # qlen x bsz x n_head x d_head
-        AC = torch.einsum('ibnd,jbnd->ijbn', (rw_head_q, w_head_k))             # qlen x klen x bsz x n_head
-
-        rr_head_q = w_head_q + r_r_bias
-        BD = torch.einsum('ibnd,jnd->ijbn', (rr_head_q, r_head_k))              # qlen x klen x bsz x n_head
-        BD = self._rel_shift(BD)
-
-        # [qlen x klen x bsz x n_head]
-        attn_score = AC + BD
-        attn_score.mul_(self.scale)
-
-        #### compute attention probability
-        if attn_mask is not None and attn_mask.any().item():
-            if attn_mask.dim() == 2:
-                attn_score = attn_score.float().masked_fill(
-                    attn_mask[None,:,:,None], -float('inf')).type_as(attn_score)
-            elif attn_mask.dim() == 3:
-                attn_score = attn_score.float().masked_fill(
-                    attn_mask[:,:,:,None], -float('inf')).type_as(attn_score)
-
-        # [qlen x klen x bsz x n_head]
-        attn_prob = F.softmax(attn_score, dim=1)
-        attn_prob = self.dropatt(attn_prob)
-
-        #### compute attention vector
-        attn_vec = torch.einsum('ijbn,jbnd->ibnd', (attn_prob, w_head_v))
-
-        # [qlen x bsz x n_head x d_head]
-        attn_vec = attn_vec.contiguous().view(
-            attn_vec.size(0), attn_vec.size(1), self.n_head * self.d_head)
-
-        ##### linear projection
-        attn_out = self.o_net(attn_vec)
-        # attn_out = self.drop(attn_out)
-
-        # if self.pre_lnorm:
-        #     ##### residual connection
-        #     output = w + attn_out
-        # else:
-        #     ##### residual connection + layer normalization
-        #     output = self.layer_norm(w + attn_out)
-
-        return attn_out
-
-
-m = RelativeMultiHeadAttention(
-    num_heads=num_heads,
-    dim_input=dim_input,
-    dim_head=dim_head
-)
-
-print(m(word_embed, pos_embed, bias_q, bias_k))
-
-
-bias_q = torch.ones(num_heads, dim_head)
-bias_k = torch.ones(num_heads, dim_head)
-m2 = RelPartialLearnableMultiHeadAttn(
-    n_head=num_heads,
-    d_model=dim_input,
-    d_head=dim_head,
-    dropout=0.1
-)
-
-# for name, param in m2.named_parameters():
-#     if param.requires_grad:
-#         print(name, param.data)
-m2.qkv_net.weight.data = m.qkv.weight.data
-m2.o_net.weight.data = m.linear.weight.data
-m2.r_net.weight.data = m.r_net.weight.data
-print(m2(word_embed, pos_embed, bias_q, bias_k))
+    print(misc.__dict__)

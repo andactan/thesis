@@ -1,16 +1,9 @@
 import torch
 import torch.nn.functional as F
 
-from models.layers.misc import Residual, FeedForward
+from models.transformer.misc import Residual, FeedForward
 from models.transformer.multi_head_attention import MultiHeadAttentionLayer
-
-
-def positional_encoding(sequence_len, dim, device=torch.device('cpu')):
-    pos = torch.arange(sequence_len, dtype=torch.float, device=device).reshape(1, -1, 1)
-    dim_ = torch.arange(dim, dtype=torch.float, device=device).reshape(1, 1, -1)
-    phase = pos / (1e4 ** (dim_ // dim))
-
-    return torch.where(dim_.long() % 2 == 0, torch.sin(phase), torch.cos(phase))
+from models.transformer.utils import positional_encoding
 
 
 class TransformerEncoderLayer(torch.nn.Module):
@@ -51,7 +44,9 @@ class TransformerEncoderLayer(torch.nn.Module):
         # feed forward network
         self.feed_forward_layer = Residual(
             FeedForward(
-                input_dim=self.input_dim, hidden_dim=self.feedforward_dim, output_dim=self.output_dim
+                input_dim=self.input_dim,
+                hidden_dim=self.feedforward_dim,
+                output_dim=self.output_dim,
             ),
             self.input_dim,
             self.dropout,
@@ -72,7 +67,7 @@ class TransformerEncoder(torch.nn.Module):
         vocab_size=None,
         feedforward_dim=2048,
         dropout=0.1,
-        device=torch.device('cpu')
+        device=torch.device("cpu"),
     ) -> None:
         super().__init__()
 

@@ -48,23 +48,6 @@ class FeedForward(torch.nn.Module):
     def forward(self, x):
         return self.net(x)
 
-class PositionalEmbedding(torch.nn.Module):
-    def __init__(self, dim) -> None:
-        super().__init__()
-
-        self.dim = dim
-
-    def forward(self, sequence_len, clamp=None):
-        pos = torch.arange(sequence_len, dtype=torch.float).reshape(1, -1, 1)
-        
-        if clamp is not None:
-            pos.clamp_(max=clamp)
-
-        dim_ = torch.arange(self.dim, dtype=torch.float).reshape(1, 1, -1)
-        phase = pos / (1e4 ** (dim_ // self.dim))
-
-        return torch.where(dim_.long() % 2 == 0, torch.sin(phase), torch.cos(phase))
-
 
 # x = [1, 2, 3, 4]
 # y = []

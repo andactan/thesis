@@ -1,10 +1,11 @@
+from statistics import mode
 import gym
 import time
 import mujoco_py
 import numpy as np
 
-from environments.benchmarks import BENCHMARKS
-from environments.policies import POLICIES
+from benchmarks import BENCHMARKS
+from policies import POLICIES
 
 
 class BaseMetaworld(gym.Env):
@@ -25,8 +26,6 @@ class BaseMetaworld(gym.Env):
 
         # choose appropriate benchmark and initialize the environment
         self.benchmark = BENCHMARKS[benchmark](**kwargs)
-
-        print(self.benchmark)
 
         # define action space and applicable arguments
         self.action_space = gym.spaces.Box(
@@ -103,23 +102,12 @@ class BaseMetaworld(gym.Env):
     def get_full_observation(self, observation=None):
         pass
 
-    def setup_camera(self):
-        """Setups the camera"""
-        if not hasattr(self.env, "viewer") or self.env.viewer is None:
-            viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, 0)
-            viewer.cam.distance = 1
-            viewer.cam.fixedcamid = 0
-            viewer.cam.azimuth = 130.0
-            viewer.cam.elevation = -50
-            viewer.cam.lookat[0] = 0
-            viewer.cam.lookat[1] = 0.7
-            viewer.cam.lookat[2] = 0
-            self.env.viewer = viewer
+
 
     def _trial_timeout(self):
         return self.steps_in_trial >= self.env.max_path_length / 2
 
-    def _reset_env(self, new_episode=True):
+    def _reset_env(self, new_episode=True): 
         """Helper function to reset the environment"""
         if new_episode:
             self.env_name, self.env, task, self.env_id = self.benchmark.sample_env_and_task()
@@ -158,6 +146,29 @@ class BaseMetaworld(gym.Env):
         info["demonstration_success"] = self.demonstration_successes
         return info
 
+    def render(self, *args, **kwargs):
+        self.env.render(*args, **kwargs)
+
+    def setup_camera(self):
+        """Setups the camera"""
+        if not hasattr(self.env, "viewer") or self.env.viewer is None:
+            print('anandayim')
+            self.env.viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, -1)
+            self.env.viewer.cam.distance = 2.0
+            self.env.viewer.cam.azimuth = 135
+            self.env.viewer.cam.elevation = -30
+            self.env.viewer.cam.lookat[0] = 0 
+            self.env.viewer.cam.lookat[1] = 0.75
+            self.env.viewer.cam.lookat[2] = 0.4
+            self.env.viewer.cam.trackbodyid = -1
+
+    def get_frame(self):
+        WIDTH = 640
+        HEIGHT = 480
+        self.env.viewer.render(width=WIDTH, height=HEIGHT)
+        return self.env.viewer.read_pixels(WIDTH, HEIGHT, depth=False)
+
+
 
 if __name__ == "__main__":
     env = BaseMetaworld(
@@ -167,7 +178,14 @@ if __name__ == "__main__":
         max_trials_per_episode=1,
         sample_num_classes=1,
         mode="meta-training",
-        v2=True,
-    )
+        v2=False,
+        visual_observations=True
+    )   
 
-    print(env.reset())
+    from PIL import Image
+
+    obs = env.reset()
+    for i in range(10000):
+        action = env.oracle_policy.get_action(obs)
+        obs, _ = env.step(action)
+        env.render()

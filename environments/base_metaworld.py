@@ -4,8 +4,8 @@ import time
 import mujoco_py
 import numpy as np
 
-from benchmarks import BENCHMARKS
-from policies import POLICIES
+from environments.benchmarks import BENCHMARKS
+from environments.policies import POLICIES
 
 
 class BaseMetaworld(gym.Env):
@@ -170,22 +170,22 @@ class BaseMetaworld(gym.Env):
 
 
 
-if __name__ == "__main__":
-    env = BaseMetaworld(
-        benchmark="ml10",
-        action_repeat=1,
-        demonstration_action_repeat=1,
-        max_trials_per_episode=1,
-        sample_num_classes=1,
-        mode="meta-training",
-        v2=False,
-        visual_observations=True
-    )   
+# if __name__ == "__main__":
+#     env = BaseMetaworld(
+#         benchmark="ml10",
+#         action_repeat=1,
+#         demonstration_action_repeat=1,
+#         max_trials_per_episode=1,
+#         sample_num_classes=1,
+#         mode="meta-training",
+#         v2=False,
+#         visual_observations=True
+#     )   
 
-    from PIL import Image
+#     from PIL import Image
 
-    obs = env.reset()
-    for i in range(10000):
-        action = env.oracle_policy.get_action(obs)
-        obs, _ = env.step(action)
-        env.render()
+#     obs = env.reset()
+#     for i in range(10000):
+#         action = env.oracle_policy.get_action(obs)
+#         obs, _ = env.step(action)
+#         env.render()

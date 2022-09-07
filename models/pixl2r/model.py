@@ -79,6 +79,8 @@ class ImageEncoder(torch.nn.Module):
         )
 
     def forward(self, x_left, x_center, x_right, traj_length):
+        # print('shape', x_left.shape)
+        # TODO: dont forget batch size
         # left view
         out_left = self.image_enc_left(x_left.view(-1, *x_left.shape[-3:]))
         out_left = out_left.view(*x_left.shape[:2], -1)
@@ -147,6 +149,7 @@ class Encoder(torch.nn.Module):
 
         return out, lang_encoded
 
-m = ImageEncoderBlock()
-x = torch.rand(1, 3, 50, 50)
-print(m(x).shape)
+m = ImageEncoder()
+# batch_size, sequence_length, channels, height, width
+x = torch.rand(1, 1, 3, 50, 50)
+print(m(x, x, x, 1).shape)

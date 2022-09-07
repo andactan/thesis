@@ -1,8 +1,18 @@
 import gym
 import mujoco_py
-import numpy
+import numpy as np
+import sys
+import os
+import cv2
+import torch
+
 from base_metaworld import BaseMetaworld
 from policies import POLICIES
+
+sys.path.append(os.path.abspath('.'))
+print(sys.path)
+from models.vision_transformer.model import ViT
+from models.pixl2r.model import ImageEncoder
 
 
 class VisionMetaworld(BaseMetaworld):
@@ -34,16 +44,19 @@ class VisionMetaworld(BaseMetaworld):
             **kwargs
         )
 
-        self.width = 640
-        self.height = 480
+        self.width = 50
+        self.height = 50
         self.observation_space = gym.spaces.Box(
-            low=0, high=255, shape=(3, self.width, self.height), dtype=numpy.uint8
+            low=0, high=255, shape=(3, self.width, self.height), dtype=np.uint8
         )
+
+        # vision encoder
+        self.encoder = ImageEncoder()
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
 
-        return (obs, self.get_observation_())
+        return (obs, self._get_observation())
 
     def reset(self):
         self.env_name, self.env, task, self.env_id = self.benchmark.sample_env_and_task()
@@ -52,17 +65,27 @@ class VisionMetaworld(BaseMetaworld):
         
         return self.env.reset()
 
-    def get_observation_(self):
-        return self.get_frame_()
+    def _get_observation(self):
+        frames = self._get_frame()
+        for pos, frame in frames.items():
+            print(frame.dtype)
+            temp = torch.from_numpy(frame.copy())
+            temp = temp.view(temp.shape[-1], *temp.shape[:-1]) # batch first
+            frames[pos] = temp[None, :]
+            print('anan', frames[pos].shape)
 
-    def get_frame_(self):
+        encoded_obs = self.encoder(frames['left'], frames['center'], frames['right'], 1)
+        
+        return encoded_obs
+
+    def _get_frame(self):
         # setup the camera for 3 different angles and snapshot renders
         obs_dict = {}
         for camera_pos in ["left", "center", "right"]:
             self.setup_camera_(camera_pos)
             self.env.viewer.render(width=self.width, height=self.height)
             obs = self.env.viewer.read_pixels(self.width, self.height, depth=False)
-            obs_dict[camera_pos] = obs[::-1, :, :] # revert the image
+            obs_dict[camera_pos] = obs[::-1, :, :].astype(np.float32) # revert the image
 
         return obs_dict
 
@@ -91,6 +114,7 @@ class VisionMetaworld(BaseMetaworld):
             "right": {"azimuth": 135},
         }
 
+        # set viewer.cam properties
         for key, val in properties[camera_pos].items():
             setattr(viewer.cam, key, val)
 

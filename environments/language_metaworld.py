@@ -45,6 +45,7 @@ class LanguageMetaworld(BaseMetaworld):
             full_observation = self.get_full_observation(
                 instruction=instruction)
             self.demonstration_phase = not instruction_end
+            info = {}
 
         else:
             # trial
@@ -52,7 +53,7 @@ class LanguageMetaworld(BaseMetaworld):
                 self.env._partially_observable = True
                 self.observation, reward, done, info = self.env.step(action)
                 self.steps_in_trial += 1
-                self.trial_success = info['success']
+                self.trial_success = self.trial_success or info['success']
                 reward_sum += reward
 
             if self._trial_timeout():
@@ -68,7 +69,8 @@ class LanguageMetaworld(BaseMetaworld):
 
         # TODO: fill out the info parameter
         done = self.num_trials_in_episode >= self.max_trials_per_episode
-        return full_observation, reward_sum, done, {}
+        info = self._append_env_info(info)
+        return full_observation, reward_sum, done, info
 
     def get_instruction_word(self):
         word = self.instruction[self.instruction_idx]

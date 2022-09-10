@@ -51,7 +51,7 @@ class BaseMetaworld(gym.Env):
         self.num_trials_in_episode = 0  # number of trials in the episode
         self.num_demons_in_episode = 0  # number of demonstrations in the episode
         self.num_trial_success = 0  # number of successful trials in the episode
-        self.num_demon_success = 0  # number of successful demons in the episode
+        self.num_demonstration_success = 0  # number of successful demons in the episode
 
         # compute the observation size
         observation_size = 15  # default value
@@ -125,25 +125,25 @@ class BaseMetaworld(gym.Env):
         self.steps_in_demonstration = 0
 
     def _append_env_info(self, info):
-        for env_name in self.benchmark.all_possible_classes.keys():
+        for env_name in self.benchmark.all_classes.keys():
             info[env_name.replace("-", "") + "_episode_success"] = float("nan")
 
         info[self.env_name.replace("-", "") + "_episode_success"] = (
-            self.num_successful_trials / self.max_trials_per_episode
+            self.num_trial_success / self.max_trials_per_episode
         )
-        info["episode_success"] = self.num_successful_trials / self.max_trials_per_episode
+        info["episode_success"] = self.num_trial_success / self.max_trials_per_episode
         if self.env_name in self.benchmark.TRAIN_CLASSES.keys():
             info["training_episode_success"] = (
-                self.num_successful_trials / self.max_trials_per_episode
+                self.num_trial_success / self.max_trials_per_episode
             )
             info["testing_episode_success"] = float("nan")
         elif self.env_name in self.benchmark.TEST_CLASSES.keys():
             info["training_episode_success"] = float("nan")
             info["testing_episode_success"] = (
-                self.num_successful_trials / self.max_trials_per_episode
+                self.num_trial_success / self.max_trials_per_episode
             )
 
-        info["demonstration_success"] = self.demonstration_successes
+        info["demonstration_success"] = self.num_demonstration_success
         return info
 
     def render(self, *args, **kwargs):

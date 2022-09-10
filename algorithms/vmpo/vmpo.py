@@ -267,8 +267,8 @@ class VMPO(RlAlgorithm):
             advantage_mask * (phi.detach() * distribution.log_prob(action).sum(dim=-1))
         )
         # pi_loss = - torch.sum(advantage_mask * (phi.detach() * self.agent.distribution.log_likelihood(action, dist_info)))
-        new_std = dist_info.log_std
-        old_std = old_dist_info.log_std
+        new_std = torch.add(dist_info.log_std, 1e-6)
+        old_std = torch.add(old_dist_info.log_std, 1e-6)
         old_covariance = torch.diag_embed(old_std)
         old_covariance_inverse = torch.diag_embed(1 / old_std)
         new_covariance_inverse = torch.diag_embed(1 / new_std)

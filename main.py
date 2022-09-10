@@ -74,7 +74,7 @@ def set_experiment(config, log_dir):
     runner_cls_kwargs = config["runner"]["args"]
     runner_affinity_kwargs = config["runner"]["affinity"]
     runner_affinity_kwargs["n_cpu_core"] = int(
-        multiprocessing.cpu_count() * runner_affinity_kwargs["n_cpu_core"]
+        runner_affinity_kwargs["n_cpu_core"]
     )
 
     # cast float values to int

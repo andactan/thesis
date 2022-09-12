@@ -29,8 +29,8 @@ def choose_affinity(slot_affinity_code):
         num_gpus = len(GPUtil.getGPUs())
 
     affinity = make_affinity(
-        n_cpu_core=4,
-        n_gpu=1, 
+        n_cpu_core=32,
+        n_gpu=2, 
         set_affinity=False)
 
     print(f'Affinity -> {affinity}')
@@ -53,12 +53,11 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
 
         sampler_kwargs=dict(
             batch_T=sequence_length,
-            batch_B=128,
-            eval_n_envs=64,
-            eval_max_steps=1e6,
-            eval_max_trajectories=512,
+            batch_B=22 * 12,
+            eval_n_envs=22 * 4,
+            eval_max_steps=1e5,
+            eval_max_trajectories=22 * 4 * 4,
             TrajInfoCls=EnvInfoTrajInfo,
-            CollectorCls=CpuWaitResetCollector,
             env_kwargs=dict(
                 action_repeat=2,
                 demonstration_action_repeat=5,
@@ -86,7 +85,7 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
 
         runner_kwargs=dict(
             n_steps=5e8,
-            log_interval_steps=5e3
+            log_interval_steps=5e6
         ),
     )
 

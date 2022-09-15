@@ -178,7 +178,7 @@ class VMPO(RlAlgorithm):
         mb_size = B // self.minibatches
         for _ in range(self.epochs):
             for idxs in iterate_mb_idxs(B, mb_size, shuffle=True):
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=True)
                 init_rnn_state = buffer_method(init_rnn_states[idxs], "transpose", 0, 1)
                 dist_info, value, _, _ = self.agent(*agent_inputs[:, idxs], init_rnn_state)
                 loss, opt_info = self.process_returns(

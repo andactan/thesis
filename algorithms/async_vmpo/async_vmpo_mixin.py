@@ -1,0 +1,2 @@
+from algorithms.async_vmpo.async_vmpo import AsyncVMPO, OptInfo
+from algorithms.vmpo.pop_art_normalization_layer import PopArtLayer

@@ -13,24 +13,24 @@ from rlpyt.utils.collections import namedarraytuple
 class AsyncReplayBuffer(AsyncReplayBufferMixin):
     """Replays sequences with starting state chosen uniformly randomly
     """
-    def __init__(self, example, sampler_B, optim_T, optim_B, target_steps, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, example, sampler_B, batch_T, optim_B, T_target_steps, *args, **kwargs):
+        super().__init__()
 
-        self.samples = buffer_from_example(example, (optim_T, optim_B), share_memory=self.async_)
+        self.samples = buffer_from_example(example, (batch_T, optim_B), share_memory=self.async_)
         self.sampler_B = sampler_B #! unused
-        self.optim_T = optim_T # sequence length
+        self.batch_T = batch_T # sequence length
         self.optim_B = optim_B # num of environments (batch size)
-        self.target_steps = target_steps
+        self.T_target_steps = T_target_steps
         self.sleep_length = 0.01
         self.t = 0
 
-        self.buffer_size = optim_B * target_steps
+        self.buffer_size = optim_B * T_target_steps
 
         field_names = [field for field in example._fields if field != "prev_rnn_state"]
         self.SamplesToBuffer = namedarraytuple('SamplesToBuffer', field_names)
         
         buffer_example = self.SamplesToBuffer(*(v for k, v in example.items() if k != 'prev_rnn_state'))
-        self.samples = buffer_from_example(buffer_example, (optim_T, self.buffer_size), share_memory=self.async_)
+        self.samples = buffer_from_example(buffer_example, (batch_T, self.buffer_size), share_memory=self.async_)
         self.samples_prev_rnn_state = buffer_from_example(example.prev_rnn_state, (self.buffer_size, ), share_memory=self.async_)
 
     def append_samples(self, samples):
@@ -51,9 +51,9 @@ class AsyncReplayBuffer(AsyncReplayBufferMixin):
             self.t = (self.t + num_new_sequences) % self.buffer_size
             self._async_push() # send update to other writers and/or readers
 
-    def generate_batches(self, replay_ratio):
+    def batch_generator(self, replay_ratio):
         if replay_ratio > 1:
-            yield from self._generate_stochastic_batches(replay_ratio)
+            yield from self._generate_stochastic_batches()
 
         else:
             self.clear_buffer() # clear buffer so that new samples are guaranteed to be from new model parameters
@@ -61,7 +61,7 @@ class AsyncReplayBuffer(AsyncReplayBufferMixin):
 
     def _generate_deterministic_batches(self):
         cum_sleep_length = 0
-        for i in range(self.target_steps):
+        for i in range(self.T_target_steps):
             while True:
                 with self.rw_lock:
                     # get the read lock and start reading the buffers
@@ -96,7 +96,7 @@ class AsyncReplayBuffer(AsyncReplayBufferMixin):
             print('[INFO] Buffer is not full yet.')
             return
 
-        for _ in range(self.target_steps):
+        for _ in range(self.T_target_steps):
             idxs = np.random.choice(self.buffer_size, self.optim_B)
 
             with self.rw_lock:

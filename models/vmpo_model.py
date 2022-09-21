@@ -2,6 +2,9 @@ import torch
 import numpy as np
 import models.layers as layers
 
+from models.mixture_of_experts.context_encoder import ContextEncoder
+from models.mixture_of_experts.expert_encoder import ExpertEncoder
+
 from rlpyt.models.mlp import MlpModel
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
@@ -26,15 +29,37 @@ class VMPOModel(torch.nn.Module):
         sequence_len=64,
         observation_normalization=True,
         size="medium",
+        state_encoder_dim_input=50,
+        state_encoder_dim_hidden = 100,
+        state_encoder_dim_output=50,
+        num_experts=4,
+        context_encoder_dim_input=100, # or 768 if roberta
+        context_encoder_dim_hidden=200,
+        context_encoder_dim_output=50
+
     ) -> None:
         super().__init__()
 
-        self.state_size = np.prod(observation_shape.state)  # memory state size
+        self.state_size = 75  # memory state size
         self.action_size = action_size
         self.linear_value_output = linear_value_output
         self.sequence_len = sequence_len
         self.observation_normalization = observation_normalization
         self.size = size
+
+        # mixture of experts
+        self.context_encoder = ContextEncoder(
+            dim_input=context_encoder_dim_input,
+            dim_hidden=context_encoder_dim_hidden,
+            dim_output=context_encoder_dim_output
+        )
+
+        self.expert_encoder = ExpertEncoder(
+            state_encoder_dim_input=state_encoder_dim_input,
+            state_encoder_dim_hidden=state_encoder_dim_hidden,
+            state_encoder_dim_output=state_encoder_dim_output,
+            num_experts=num_experts
+        )
 
         # transformer configs
         self.size_dict = SIZE[self.size]
@@ -83,15 +108,40 @@ class VMPOModel(torch.nn.Module):
         lead_dim, T, B, _ = infer_leading_dims(observation.state, 1)
         aux_loss = None
 
+        # here add Mixture of Experts, augment the observation.state with observation.context
+        # and then pass it instead of observation.state
+        # context_emb = self.context_encoder(observation.context)
+        # new_state = self.expert_encoder(observation.state, context_embd)
+
+        
+        # call it as
+        # self.sample_forward(new_state, state)
+        # self.optim_forward(new_state, state)
+        # print(observation.context.shape)
+        # print(observation.state.shape)
+
+        obs_context = observation.context
+        obs_state = observation.state
+        if len(obs_context.shape) < 2:
+            obs_context = obs_context.unsqueeze(dim=0)
+            obs_state = obs_state.unsqueeze(dim=0)
+
+        context_emb = self.context_encoder(obs_context)
+        state_emb = self.expert_encoder(obs_state, context_emb)
+        new_state = torch.cat((state_emb, context_emb), dim=1)
+
+
         if T == 1:
             # model only takes one input for each batch idx
             # so, it is in eval mode (sampling)
-            transformer_out, state = self.sample_forward(observation.state, state)
+
+            # new_state = new_state.squeeze(dim=0)
+            transformer_out, state = self.sample_forward(new_state, state)
             value = torch.zeros(B)
 
         elif T == self.sequence_len:
             # model is in train mode
-            transformer_out, aux_loss = self.optim_forward(observation.state, state)
+            transformer_out, aux_loss = self.optim_forward(new_state, state)
             value = self.value_net(transformer_out).reshape(T * B, -1)
 
         else:

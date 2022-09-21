@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from state_encoder import StateEncoder
+from models.mixture_of_experts.state_encoder import StateEncoder
 
 
 class ExpertEncoder(nn.Module):
@@ -46,35 +46,39 @@ class ExpertEncoder(nn.Module):
             state = state.unsqueeze(dim=0)
             context_embedding = context_embedding.unsqueeze(dim=0)
 
-        mixture_of_experts = self.state_encoder(state) # n x num_experts
-        # context = self.context_encoder(embedding) # n x dim_output
+        mixture_of_experts = self.state_encoder(state) # seq, expert, batch, dim
 
         # detach the context embedding from the computation graph
         context_embedding = context_embedding.detach() # n x dim_output
 
-        temp = mixture_of_experts.permute(1, 0, 2, 3) # expert, seq, batch, dim
-        ctx_emb = context_embedding.unsqueeze(dim=1).permute(0, 2, 1, 3)
+        temp = mixture_of_experts.permute(0, 2, 1, 3) # seq, batch, expert, dim
+        ctx_emb = context_embedding.unsqueeze(dim=2).permute(0, 1, 3, 2)
         attention = torch.matmul(temp, ctx_emb)
 
-        attention = F.softmax(attention, dim=1)
-        combined = torch.matmul(temp.permute(0, 2, 1), attention)
+        attention = F.softmax(attention, dim=2)
+        combined = torch.matmul(attention.permute(0, 1, 3, 2), temp)
         combined = combined.squeeze(dim=2)
         return self.mlp(combined)
 
-e = ExpertEncoder(state_encoder_dim_input=50, state_encoder_dim_hidden=50, state_encoder_dim_output=20, num_experts=2)
-state = torch.rand(4, 3, 50)
-context = torch.rand(4, 3, 20)
+# e = ExpertEncoder(state_encoder_dim_input=50, state_encoder_dim_hidden=50, state_encoder_dim_output=20, num_experts=2)
+# state = torch.rand(3, 2, 50)
+# context = torch.rand(3, 2, 20)
 
-attention = e(state, context)
-print(attention.shape)
+# attention = e(state, context)
+# print(attention.shape)
 
-z = torch.cat((attention, context), dim=1)
-print(z.shape)
+# if len(state.shape) == 2:
+#     attention = attention.squeeze(dim=0)
+#     z = torch.cat((attention, context), dim=1)
 
-# state = torch.rand(1, 50)
-# state = state.view(1, -1)
+# if len(state.shape) == 3:
+#     z = torch.cat((attention, context), dim=2)
+# print(z.shape)
 
-# print(state.shape)
+# # state = torch.rand(1, 50)
+# # state = state.view(1, -1)
+
+# # print(state.shape)
 
 
 

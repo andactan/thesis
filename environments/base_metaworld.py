@@ -113,8 +113,8 @@ class BaseMetaworld(gym.Env):
             self.env_name, self.env, task, self.env_id = self.benchmark.sample_env_and_task()
             self.env.set_task(task)
 
-            if self.visual_observations:
-                self.setup_camera()
+            # if self.visual_observations:
+            #     self.setup_camera()
 
         self.observation = self.env.reset()
 

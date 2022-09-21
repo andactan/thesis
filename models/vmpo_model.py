@@ -128,7 +128,13 @@ class VMPOModel(torch.nn.Module):
 
         context_emb = self.context_encoder(obs_context)
         state_emb = self.expert_encoder(obs_state, context_emb)
-        new_state = torch.cat((state_emb, context_emb), dim=1)
+        
+        if len(obs_context.shape) == 2:
+            state_emb = state_emb.squeeze(dim=0)
+            new_state = torch.cat((state_emb, context_emb), dim=1)
+
+        if len(obs_context.shape) == 3:
+            new_state = torch.cat((state_emb, context_emb), dim=2)
 
 
         if T == 1:

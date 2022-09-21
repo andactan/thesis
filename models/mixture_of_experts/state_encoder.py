@@ -67,9 +67,9 @@ class StateEncoder(nn.Module):
 
         return self.encoder(out)
 
-e = StateEncoder(dim_input=50, dim_hidden=50, dim_output=25, num_experts=4)
-x = torch.rand(1, 3, 50) # sequence_len, batch, dim
-y = e(x)
-print(y.shape)
+# e = StateEncoder(dim_input=50, dim_hidden=50, dim_output=25, num_experts=4)
+# x = torch.rand(2, 1, 50) # sequence_len, batch, dim
+# y = e(x)
+# print(y.shape)
 
 

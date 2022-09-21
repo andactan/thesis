@@ -37,7 +37,7 @@ class AsyncVMPO(VMPO):
         return self.replay_buffer
 
     def optim_initialize(self, rank=0):
-        device = self.agent.device
+        device = 'cpu'
         self.alpha = torch.autograd.Variable(torch.ones(1, device=device) * self.initial_alpha, requires_grad=True)
         self.alpha_mu = torch.autograd.Variable(torch.ones(1, device=device) * self.initial_alpha_mu, requires_grad=True)
         self.alpha_sigma = torch.autograd.Variable(torch.ones(1, device=device) * self.initial_alpha_sigma, requires_grad=True)

@@ -179,4 +179,7 @@ test_outs/*
 files/*
 # Support for Project snippet scope
 
+# custom igoneres
+experiments/*
+
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudioc

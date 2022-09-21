@@ -9,8 +9,6 @@ import numpy as np
 from environments.base_metaworld import BaseMetaworld
 from environments.instructions import INSTRUCTIONS
 
-import OpenGL.GL as gl
-
 class LanguageMetaworld(BaseMetaworld):
 
     def __init__(self, mujoco_context_lock, *args, **kwargs):

@@ -91,11 +91,10 @@ class VisionMetaworld(BaseMetaworld):
 
     def setup_camera_(self, camera_pos="center"):
         """Setups the camera"""
-
-        print("setupping camera...")
+        
         viewer = None
         if not hasattr(self.env, "viewer") or self.env.viewer is None:
-            viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, -1)
+            viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, device_id=1)
 
         else:
             viewer = self.env.viewer
@@ -124,7 +123,10 @@ class VisionMetaworld(BaseMetaworld):
 
 if __name__ == "__main__":
     from PIL import Image
-
+    import os
+    # os.environ['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+    # os.environ['MESA_GLSL_VERSION_OVERRIDE'] = '330'
+    # os.environ['DISPLAY'] = ':0'
 
     env = VisionMetaworld(
         benchmark="ml10",
@@ -138,15 +140,17 @@ if __name__ == "__main__":
     )
 
     obs = env.reset()
-    for i in range(1000):
-        action = env.oracle_policy.get_action(obs)
-        obs, visual = env.step(action)
-        # env.render()
+    env.env.sim.render(30, 30, device_id=1)
+    env._get_observation()
+    # for i in range(1000):
+    #     action = env.oracle_policy.get_action(obs)
+    #     obs, visual = env.step(action)
+    #     # env.render()
 
-        for pos in ['left', 'center', 'right']:
-            arr = visual[pos]
-            im = Image.fromarray(arr)
-            im.save(f'image_{pos}.png')
+    #     for pos in ['left', 'center', 'right']:
+    #         arr = visual[pos]
+    #         im = Image.fromarray(arr)
+    #         im.save(f'image_{pos}.png')
 
         
 

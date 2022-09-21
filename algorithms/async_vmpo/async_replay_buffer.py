@@ -93,7 +93,7 @@ class AsyncReplayBuffer(AsyncReplayBufferMixin):
 
         if not self._buffer_full:
             # wait until the buffer is completely full
-            print('[INFO] Buffer is not full yet.')
+            print(f'[INFO] {self.t} Buffer is not full yet.')
             return
 
         for _ in range(self.T_target_steps):

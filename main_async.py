@@ -9,6 +9,7 @@ import sys
 
 from algorithms.vmpo.vmpo import VMPO
 from algorithms.async_vmpo.async_vmpo import AsyncVMPO
+from algorithms.async_vmpo.async_vmpo_mixin import MultitaskAsyncVMPO
 from environments.language_metaworld import LanguageMetaworld
 from misc.traj_infos import EnvInfoTrajInfo
 from agents.vmpo_agent import VMPOAgent
@@ -32,15 +33,17 @@ def choose_affinity(slot_affinity_code):
         num_gpus = len(GPUtil.getGPUs())
 
     affinity = make_affinity(
-        n_cpu_core=8,
-        cpu_per_run=8,
+        n_cpu_core=20,
+        cpu_per_run=20,
         n_gpu=1,
         async_sample=True,
         optim_sample_share_gpu=False,
         alternating=False,
-        set_affinity=True)
+        set_affinity=True,
+        n_socket=1)
 
     affinity['optimizer'][0]['cuda_idx'] = 0
+    affinity['cuda_idx'] = 0
 
     print(f'Affinity -> {affinity}')
     return affinity
@@ -55,20 +58,23 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
     sequence_length = 64
     config = dict(
         algo_kwargs=dict(
-            epochs=2,
+            epochs=4,
             minibatches=1,
             T_target_steps=100,
-            batch_B=16,
+            batch_B=128,
             batch_T=sequence_length,
-            pop_art_reward_normalization=True
+            epsilon_eta=0.1,
+            gae_lambda=1,
+            num_tasks=50,
+            discrete_actions=False
         ),
 
         sampler_kwargs=dict(
-            batch_T=sequence_length,
-            batch_B=8,
-            eval_n_envs=8,
-            eval_max_steps=1024,
-            eval_max_trajectories=256,
+            batch_T=sequence_length, # number of time steps to be taken in each environment
+            batch_B=280, # number of parallel envs
+            eval_n_envs=100,
+            eval_max_steps=1e5,
+            eval_max_trajectories=360,
             TrajInfoCls=EnvInfoTrajInfo,
             env_kwargs=dict(
                 action_repeat=2,
@@ -101,7 +107,7 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
         ),
     )
 
-    AlgoCls=AsyncVMPO
+    AlgoCls=MultitaskAsyncVMPO
     SamplerCls=AsyncCpuSampler
     RunnerCls=AsyncRlEval
     AgentCls=VMPOAgent

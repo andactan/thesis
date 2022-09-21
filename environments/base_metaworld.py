@@ -83,6 +83,7 @@ class BaseMetaworld(gym.Env):
     def reset(self):
         """Resets the environment to its default configuration"""
         self._reset_env(new_episode=True)
+        
         self.oracle_policy = POLICIES[self.env_name]() if not self.v2 else None
 
         # reset counters
@@ -127,10 +128,13 @@ class BaseMetaworld(gym.Env):
     def _append_env_info(self, info):
         for env_name in self.benchmark.all_classes.keys():
             info[env_name.replace("-", "") + "_episode_success"] = float("nan")
+            info[env_name.replace("-", "") + "_is_live"] = float('nan')
 
         info[self.env_name.replace("-", "") + "_episode_success"] = (
             self.num_trial_success / self.max_trials_per_episode
         )
+
+        info[self.env_name.replace("-", "") + "_is_live"] = 1.0
         info["episode_success"] = self.num_trial_success / self.max_trials_per_episode
         if self.env_name in self.benchmark.TRAIN_CLASSES.keys():
             info["training_episode_success"] = (
@@ -147,13 +151,13 @@ class BaseMetaworld(gym.Env):
         return info
 
     def render(self, *args, **kwargs):
-        self.env.render(*args, **kwargs)
+        super().render(*args, **kwargs)
 
     def setup_camera(self):
         """Setups the camera"""
         if not hasattr(self.env, "viewer") or self.env.viewer is None:
             print('anandayim')
-            self.env.viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, -1)
+            self.env.viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, 0)
             self.env.viewer.cam.distance = 2.0
             self.env.viewer.cam.azimuth = 135
             self.env.viewer.cam.elevation = -30
@@ -170,22 +174,22 @@ class BaseMetaworld(gym.Env):
 
 
 
-# if __name__ == "__main__":
-#     env = BaseMetaworld(
-#         benchmark="ml10",
-#         action_repeat=1,
-#         demonstration_action_repeat=1,
-#         max_trials_per_episode=1,
-#         sample_num_classes=1,
-#         mode="meta-training",
-#         v2=False,
-#         visual_observations=True
-#     )   
+if __name__ == "__main__":
+    env = BaseMetaworld(
+        benchmark="ml10",
+        action_repeat=1,
+        demonstration_action_repeat=1,
+        max_trials_per_episode=1,
+        sample_num_classes=1,
+        mode="meta-training",
+        v2=False,
+        visual_observations=True
+    )   
 
-#     from PIL import Image
+    from PIL import Image
 
-#     obs = env.reset()
-#     for i in range(10000):
-#         action = env.oracle_policy.get_action(obs)
-#         obs, _ = env.step(action)
-#         env.render()
+    obs = env.reset()
+    for i in range(10000):
+        action = env.oracle_policy.get_action(obs)
+        obs, _ = env.step(action)
+        env.render()

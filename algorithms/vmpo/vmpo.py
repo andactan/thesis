@@ -61,10 +61,10 @@ class VMPO(RlAlgorithm):
     def __init__(
         self,
         discount=0.99,
-        learning_rate=1e-4,
+        learning_rate=5e-4, # changed
         T_target_steps=100,
         bootstrap_with_online_model=False,
-        OptimCls=torch.optim.Adam,
+        OptimCls=torch.optim.AdamW, # changed
         pop_art_reward_normalization=True,
         optim_kwargs=None,
         initial_optim_state_dict=None,

@@ -11,10 +11,8 @@ from environments.instructions import INSTRUCTIONS
 
 class LanguageMetaworld(BaseMetaworld):
 
-    def __init__(self, mujoco_context_lock, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
-        self.mujoco_context_lock = mujoco_context_lock
 
         self.instruction_idx = 0
         self.instruction = None
@@ -30,9 +28,9 @@ class LanguageMetaworld(BaseMetaworld):
         self.embeddings = pickle.load(open(vocab_path, 'rb'))
 
         # load context embeddings
-        context_path = os.path.join(os.path.dirname(__file__), 'context_embeddings.pkl')
+        context_path = os.path.join(os.path.dirname(__file__), 'context_embeddings_roberta.pkl')
         self.context_embeddings = pickle.load(open(context_path, 'rb'))
-        self.context_dim = 100
+        self.context_dim = 768
 
         # define the observation space
         if self.visual_observations:
@@ -146,7 +144,7 @@ class LanguageMetaworld(BaseMetaworld):
         self.instruction_idx = 0
 
 
-    def _get_visual_observations(self, camera_poss=['center']):
+    # def _get_visual_observations(self, camera_poss=['center']):
         # obs_dict = {}
         # for camera_pos in camera_poss:
         #     with self.mujoco_context_lock:
@@ -160,52 +158,52 @@ class LanguageMetaworld(BaseMetaworld):
 
         # print(f'{self.env_name} - {self.env_id} released the lock')
         # return obs_dict
-        with self.mujoco_context_lock:
-            # print(f'{self.env_name} - {self.env_id} got the lock')
-            for i in range(len(self.env.sim.render_contexts)):
-                del self.env.sim.render_contexts[i]
+        # with self.mujoco_context_lock:
+        #     # print(f'{self.env_name} - {self.env_id} got the lock')
+        #     for i in range(len(self.env.sim.render_contexts)):
+        #         del self.env.sim.render_contexts[i]
 
-            sim = self.env.sim
-            render_ctx = mujoco_py.MjRenderContext(sim=sim, device_id=0, offscreen=True, opengl_backend='opengl')
+        #     sim = self.env.sim
+        #     render_ctx = mujoco_py.MjRenderContext(sim=sim, device_id=0, offscreen=True, opengl_backend='opengl')
             
-            render_ctx.render(64, 64)
-            x = render_ctx.read_pixels(64, 64)
-            del render_ctx
-            # self.env.close()
-            # x = gl.glReadPixels(0, 0, 20, 20)
-            # print(f'{self.env_name} - {self.env_id} released the lock')
-            return dict(center=x)
+        #     render_ctx.render(64, 64)
+        #     x = render_ctx.read_pixels(64, 64)
+        #     del render_ctx
+        #     # self.env.close()
+        #     # x = gl.glReadPixels(0, 0, 20, 20)
+        #     # print(f'{self.env_name} - {self.env_id} released the lock')
+            # return dict(center=x)
 
 
-    def _setup_camera(self, camera_pos='center'):
-        """ Setups the camera in 3 different points """
-        viewer = None
-        if not hasattr(self.env, "viewer") or self.env.viewer is None:
-            viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, device_id=0)
-            # viewer = mujoco_py.MjRenderContext(sim=self.env.sim, device_id=1, offscreen=True)
+    # def _setup_camera(self, camera_pos='center'):
+    #     """ Setups the camera in 3 different points """
+    #     viewer = None
+    #     if not hasattr(self.env, "viewer") or self.env.viewer is None:
+    #         viewer = mujoco_py.MjRenderContextOffscreen(self.env.sim, device_id=0)
+    #         # viewer = mujoco_py.MjRenderContext(sim=self.env.sim, device_id=1, offscreen=True)
 
-        else:
-            viewer = self.env.viewer
+    #     else:
+    #         viewer = self.env.viewer
 
-        viewer.cam.lookat[0] = 0
-        viewer.cam.lookat[1] = 0.75
-        viewer.cam.lookat[2] = 0.4
-        viewer.cam.elevation = -30  # default elevation
-        viewer.cam.trackbodyid = -1
-        viewer.cam.distance = 2.0  # default value for left and right
+    #     viewer.cam.lookat[0] = 0
+    #     viewer.cam.lookat[1] = 0.75
+    #     viewer.cam.lookat[2] = 0.4
+    #     viewer.cam.elevation = -30  # default elevation
+    #     viewer.cam.trackbodyid = -1
+    #     viewer.cam.distance = 2.0  # default value for left and right
 
-        properties = {
-            "center": {"distance": 1.10, "azimuth": 90},
-            "left": {"azimuth": 45},
-            "right": {"azimuth": 135},
-        }
+    #     properties = {
+    #         "center": {"distance": 1.10, "azimuth": 90},
+    #         "left": {"azimuth": 45},
+    #         "right": {"azimuth": 135},
+    #     }
 
-        # set viewer.cam properties
-        for key, val in properties[camera_pos].items():
-            setattr(viewer.cam, key, val)
+    #     # set viewer.cam properties
+    #     for key, val in properties[camera_pos].items():
+    #         setattr(viewer.cam, key, val)
 
-        # set the new viewer
-        self.env.viewer = viewer
+    #     # set the new viewer
+    #     self.env.viewer = viewer
 
 if __name__ == '__main__':
     import os

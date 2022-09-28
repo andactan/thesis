@@ -3,24 +3,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from collections import OrderedDict
 
-class ContextEncoder(torch.nn.Module):
-    """Gets a precomputed instruction (environment name) embedding and passes through MLP
 
-    Args:
-        torch (_type_): _description_
-    """
+class ContextEncoder(nn.Module):
+  """ Project the context embedding to a lower dimension
+  """
+  def __init__(self, dim_input, dim_hidden, dim_output):
+    super().__init__()
+    self.model = nn.Sequential(OrderedDict([
+      ('input', nn.Linear(dim_input, dim_hidden)),
+      ('relu1', nn.ReLU()),
+      ('linear1', nn.Linear(dim_hidden, dim_hidden)),
+      ('relu', nn.ReLU()),
+      ('trunk_linear1', nn.Linear(dim_hidden, dim_hidden)),
+      ('relu3', nn.ReLU()),
+      ('trunk_linear2', nn.Linear(dim_hidden, dim_output)),
+      # ('relu4', nn.ReLU()),
+      # ('output', nn.Linear(dim_hidden, dim_output))
+    ]))
 
-    def __init__(self, dim_input, dim_hidden, dim_output) -> None:
-        super().__init__()
-
-        self.model = nn.Sequential(
-            nn.Linear(dim_input, dim_hidden),
-            nn.ReLU(),
-            nn.Linear(dim_hidden, dim_hidden),
-            nn.ReLU(),
-            nn.Linear(dim_hidden, dim_output)
-        )
-
-    def forward(self, x):
-        return self.model(x)
+  def forward(self, x):
+    return self.model(x)

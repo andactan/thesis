@@ -1,15 +1,14 @@
 from datetime import datetime
 import multiprocessing
 import os
-import GPUtil
+# import GPUtil
 import sys
 
+os.environ['LD_PRELOAD'] = f"{os.environ['HOME']}/.mujoco/mujoco210/bin/libglewegl.so"
 # sys.path.remove('/data/yaoxt3/RL/rlpyt')
 # sys.path.append('/data/yaoxt3/Sina-thesis/rlpyt')
 
 from algorithms.vmpo.vmpo import VMPO
-from algorithms.async_vmpo.async_vmpo import AsyncVMPO
-from algorithms.async_vmpo.async_vmpo_mixin import MultitaskAsyncVMPO
 from environments.language_metaworld import LanguageMetaworld
 from misc.traj_infos import EnvInfoTrajInfo
 from agents.vmpo_agent import VMPOAgent
@@ -17,11 +16,10 @@ from models import VMPOModel
 from misc import CustomEnvInfoWrapper
 
 from rlpyt.samplers.parallel.cpu.sampler import CpuSampler
-from rlpyt.samplers.async_.cpu_sampler import AsyncCpuSampler
+from rlpyt.samplers.parallel.gpu.sampler import GpuSampler
 from rlpyt.samplers.parallel.cpu.collectors import CpuWaitResetCollector
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.runners.minibatch_rl import MinibatchRlEval
-from rlpyt.runners.async_rl import AsyncRlEval
 from rlpyt.utils.launching.affinity import make_affinity
 from rlpyt.envs.gym import GymEnvWrapper
 from rlpyt.utils.logging.context import logger_context
@@ -30,20 +28,12 @@ from rlpyt.utils.logging.context import logger_context
 def choose_affinity(slot_affinity_code):
     if slot_affinity_code is None:
         num_cpus = multiprocessing.cpu_count()
-        num_gpus = len(GPUtil.getGPUs())
+        # num_gpus = len(GPUtil.getGPUs())
 
     affinity = make_affinity(
-        n_cpu_core=20,
-        cpu_per_run=20,
-        n_gpu=1,
-        async_sample=True,
-        optim_sample_share_gpu=False,
-        alternating=False,
-        set_affinity=True,
-        n_socket=1)
-
-    affinity['optimizer'][0]['cuda_idx'] = 0
-    affinity['cuda_idx'] = 0
+        n_cpu_core=32,
+        n_gpu=2, 
+        set_affinity=False)
 
     print(f'Affinity -> {affinity}')
     return affinity
@@ -55,38 +45,35 @@ def metaworld_env_wrapper(**kwargs):
     return GymEnvWrapper(CustomEnvInfoWrapper(env, info_example))
 
 def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=False, alternating_sampler=False, name='run'):
-    sequence_length = 64 # changed 64 -> 80
+    sequence_length = 16
+    num_workers_cpus = 20
+    mujoco_context_lock = multiprocessing.Lock()
     config = dict(
         algo_kwargs=dict(
-            epochs=4,
+            epochs=2,
             minibatches=1,
-            T_target_steps=100, # changed 100 -> 120
-            batch_B=256, # changed 128 -> 256
-            batch_T=sequence_length,
-            epsilon_eta=0.1,
-            gae_lambda=1,
-            discrete_actions=False
+            pop_art_reward_normalization=True
         ),
 
         sampler_kwargs=dict(
-            batch_T=sequence_length, # number of time steps to be taken in each environment
-            batch_B=285, # number of parallel envs
-            eval_n_envs=100,
-            eval_max_steps=1e5, # changed 
-            eval_max_trajectories=400, # changed 360 -> 400
+            batch_T=sequence_length,
+            batch_B=1,
+            eval_n_envs=num_workers_cpus,
+            eval_max_steps=1e5,
+            eval_max_trajectories=num_workers_cpus * 20,
             TrajInfoCls=EnvInfoTrajInfo,
             env_kwargs=dict(
-                action_repeat=4, # changed 2 => 4
-                demonstration_action_repeat=5, # not used
-                max_trials_per_episode=3, # changed 3 -> 4
+                action_repeat=2,
+                demonstration_action_repeat=5,
+                max_trials_per_episode=3,
                 mode='meta-training',
                 benchmark='ml10'
             ),
             eval_env_kwargs=dict(
                 benchmark='ml10',
-                action_repeat=4, # changed 2 -> 4
-                demonstration_action_repeat=5, # not used
-                max_trials_per_episode=3, # changed 3 -> 4
+                action_repeat=2,
+                demonstration_action_repeat=5,
+                max_trials_per_episode=3,
                 mode='all'
             )
         ),
@@ -101,19 +88,19 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
         ),
 
         runner_kwargs=dict(
-            n_steps=5e8, # changed 5e8 -> 5e7
+            n_steps=4e8,
             log_interval_steps=5e6
         ),
     )
 
-    AlgoCls=AsyncVMPO
-    SamplerCls=AsyncCpuSampler
-    RunnerCls=AsyncRlEval
+    AlgoCls=VMPO
+    SamplerCls=CpuSampler
+    RunnerCls=MinibatchRlEval
     AgentCls=VMPOAgent
 
-    affinity = choose_affinity(
-        slot_affinity_code=slot_affinity_code
-    )
+    # affinity = choose_affinity(
+    #     slot_affinity_code=slot_affinity_code
+    # )
 
     sampler = SamplerCls(**config['sampler_kwargs'], EnvCls=metaworld_env_wrapper)
     algorithm = AlgoCls(**config['algo_kwargs'])
@@ -123,8 +110,9 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
         algo=algorithm,
         agent=agent,
         sampler=sampler,
-        # affinity=dict(cuda_idx=0, workers_cpus=list(range(8)))
-        affinity=affinity
+        # affinity=dict(cuda_idx=0)
+        affinity=dict(cuda_idx=0, workers_cpus=list(range(num_workers_cpus)))
+        # affinity=affinity
     )
 
     log_dir = os.path.join(os.getcwd(), log_dir)

@@ -33,14 +33,14 @@ class VMPOModel(torch.nn.Module):
         state_encoder_dim_hidden = 100,
         state_encoder_dim_output=50,
         num_experts=4,
-        context_encoder_dim_input=100, # or 768 if roberta
+        context_encoder_dim_input=768, # or 768 if roberta (100 GloVe)
         context_encoder_dim_hidden=200,
-        context_encoder_dim_output=50
+        context_encoder_dim_output=100
 
     ) -> None:
         super().__init__()
 
-        self.state_size = 75  # memory state size
+        self.state_size = 150  # memory state size (50 [expert encoder output] state + 100 context)
         self.action_size = action_size
         self.linear_value_output = linear_value_output
         self.sequence_len = sequence_len
@@ -58,6 +58,9 @@ class VMPOModel(torch.nn.Module):
             state_encoder_dim_input=state_encoder_dim_input,
             state_encoder_dim_hidden=state_encoder_dim_hidden,
             state_encoder_dim_output=state_encoder_dim_output,
+            weight_network_dim_input=context_encoder_dim_output,
+            weight_network_dim_hidden=context_encoder_dim_output,
+            weight_network_dim_output=num_experts,
             num_experts=num_experts
         )
 
@@ -122,21 +125,21 @@ class VMPOModel(torch.nn.Module):
 
         obs_context = observation.context
         obs_state = observation.state
-        if len(obs_context.shape) < 2:
-            obs_context = obs_context.unsqueeze(dim=0)
-            obs_state = obs_state.unsqueeze(dim=0)
+        # if len(obs_context.shape) < 2:
+        #     obs_context = obs_context.unsqueeze(dim=0)
+        #     obs_state = obs_state.unsqueeze(dim=0)
 
         context_emb = self.context_encoder(obs_context)
         state_emb = self.expert_encoder(obs_state, context_emb)
         
-        if len(obs_context.shape) == 2:
-            state_emb = state_emb.squeeze(dim=0)
-            new_state = torch.cat((state_emb, context_emb), dim=1)
+        # if len(obs_context.shape) == 2:
+        #     state_emb = state_emb.squeeze(dim=0)
+        #     new_state = torch.cat((state_emb, context_emb), dim=1)
 
-        if len(obs_context.shape) == 3:
-            new_state = torch.cat((state_emb, context_emb), dim=2)
+        # if len(obs_context.shape) == 3:
+        #     new_state = torch.cat((state_emb, context_emb), dim=2)
 
-
+        new_state = torch.cat((state_emb, context_emb), dim=-1)
         if T == 1:
             # model only takes one input for each batch idx
             # so, it is in eval mode (sampling)
@@ -153,6 +156,7 @@ class VMPOModel(torch.nn.Module):
         else:
             raise NotImplementedError
 
+        #! maybe integrate from here?????
         policy_out = self.policy_net(transformer_out).view(T * B, -1)
         mu = torch.tanh(policy_out[:, self.action_size :])
         std = self.softplus(policy_out[:, : self.action_size])
@@ -164,53 +168,55 @@ class VMPOModel(torch.nn.Module):
 
     def sample_forward(self, observation, state):
         lead_dim, T, B, _ = infer_leading_dims(observation, 1)
-        observation = self.input_layer_norm(observation)
 
-        device = observation.device
-        if state is None:
-            observations = torch.zeros((self.sequence_len, B, self.state_size), device=device)
-            length = torch.zeros((1, B, 1), device=device, dtype=torch.int64)
-            memory = torch.zeros(
-                (self.depth, B, self.sequence_len, self.transformer_dim), device=device
+        with torch.no_grad():
+            observation = self.input_layer_norm(observation)
+
+            device = observation.device
+            if state is None:
+                observations = torch.zeros((self.sequence_len, B, self.state_size), device=device)
+                length = torch.zeros((1, B, 1), device=device, dtype=torch.int64)
+                memory = torch.zeros(
+                    (self.depth, B, self.sequence_len, self.transformer_dim), device=device
+                )
+                compressed_memory = torch.zeros(
+                    (self.depth, B, self.cmem_length, self.transformer_dim), device=device
+                )
+            else:
+                observations = state.sequence
+                length = state.length.clamp_max(self.sequence_len - 1)
+                memory = state.memory
+                compressed_memory = state.compressed_memory
+
+            # write new observations in tensor with older observations
+            observation = observation.view(B, -1)
+            # print(f'observations shape {observations.shape} observation {observation.shape}')
+            # observations = torch.cat((observations, observation), dim=0)[1:]
+            indexes = tuple(
+                torch.cat((length[0, :], torch.arange(B, device=device).unsqueeze(-1)), dim=-1).t()
             )
-            compressed_memory = torch.zeros(
-                (self.depth, B, self.cmem_length, self.transformer_dim), device=device
+            observations.index_put_(indexes, observation)
+            
+            transformer_output, new_memory, _ = self.transformer(
+                observations.transpose(0, 1), layers.Memory(mem=memory, compressed_mem=None)
             )
-        else:
-            observations = state.sequence
-            length = state.length.clamp_max(self.sequence_len - 1)
-            memory = state.memory
-            compressed_memory = state.compressed_memory
+            transformer_output = self.output_layer_norm(transformer_output).transpose(0, 1)
+            # output = transformer_output.transpose(0, 1)[-1]
+            output = transformer_output[length[0, :, 0], torch.arange(B)]
+            # output = transformer_output[-1].reshape(T, B, -1)
+            length = torch.fmod(length + 1, self.sequence_len)
 
-        # write new observations in tensor with older observations
-        observation = observation.view(B, -1)
-        # print(f'observations shape {observations.shape} observation {observation.shape}')
-        # observations = torch.cat((observations, observation), dim=0)[1:]
-        indexes = tuple(
-            torch.cat((length[0, :], torch.arange(B, device=device).unsqueeze(-1)), dim=-1).t()
-        )
-        observations.index_put_(indexes, observation)
+            reset = (length == 0).int()[0, :, 0].reshape(B, 1, 1, 1).transpose(0, 1).expand_as(memory)
+            # print(f'length {length[0, :, 0]}')
+            # if B > 1 and length[0, 0, 0] != length[0, 1, 0]:
+            #     breakpoint()
+            memory = reset * new_memory.mem + (1 - reset) * memory
+            # memory = new_memory.mem
 
-        transformer_output, new_memory, _ = self.transformer(
-            observations.transpose(0, 1), layers.Memory(mem=memory, compressed_mem=None)
-        )
-        transformer_output = self.output_layer_norm(transformer_output).transpose(0, 1)
-        # output = transformer_output.transpose(0, 1)[-1]
-        output = transformer_output[length[0, :, 0], torch.arange(B)]
-        # output = transformer_output[-1].reshape(T, B, -1)
-        length = torch.fmod(length + 1, self.sequence_len)
-
-        reset = (length == 0).int()[0, :, 0].reshape(B, 1, 1, 1).transpose(0, 1).expand_as(memory)
-        # print(f'length {length[0, :, 0]}')
-        # if B > 1 and length[0, 0, 0] != length[0, 1, 0]:
-        #     breakpoint()
-        memory = reset * new_memory.mem + (1 - reset) * memory
-        # memory = new_memory.mem
-
-        state = State(
-            sequence=observations, length=length, memory=memory, compressed_memory=compressed_memory
-        )
-        return output, state
+            state = State(
+                sequence=observations, length=length, memory=memory, compressed_memory=compressed_memory
+            )
+            return output, state
 
 
     def optim_forward(self, observation, state):

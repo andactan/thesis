@@ -111,7 +111,7 @@ class AsyncVMPO(VMPO):
 
         batch_generator = self.replay_buffer.batch_generator(replay_ratio=self.epochs)
         for batch, init_rnn_state, buffer_wait_time in batch_generator:
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad(set_to_none=True)
             init_rnn_state = buffer_method(init_rnn_state, "transpose", 0, 1)
             agent_output = self.agent(*batch.agent_inputs, init_rnn_state)
             dist_info, value = agent_output[:2]

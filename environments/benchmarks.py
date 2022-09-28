@@ -18,6 +18,13 @@ HARD_MODE_CLS_DICT['train'].pop('lever-pull-v1')  # reward function not working
 HARD_MODE_CLS_DICT['test'].pop('bin-picking-v1')  # reward function not working
 # HARD_MODE_CLS_DICT['test'].pop('hand-insert-v1') #reward function not working
 
+# MEDIUM_MODE_CLS_DICT['train'].pop('pick-place-v1') # for the moe
+# MEDIUM_MODE_CLS_DICT['train'].pop('basketball-v1') # for the moe
+# MEDIUM_MODE_CLS_DICT['train'].pop('button-press-topdown-v1') # for the moe
+# MEDIUM_MODE_CLS_DICT['test'].pop('shelf-place-v1') # for the moe
+# MEDIUM_MODE_CLS_DICT['test'].pop('lever-pull-v1') # for the moe
+# MEDIUM_MODE_CLS_DICT['test'].pop('sweep-into-v1') # for the moe
+
 
 class DemonstrationBenchmark(Benchmark):
     def __init__(self, mode='meta-training', sample_num_classes=1):
@@ -167,5 +174,4 @@ BENCHMARKS = {
 
 if __name__ == '__main__':
     d = ML10()
-    # print(d._envs)
-    print(d.train_kwargs)
+    print(d.TEST_CLASSES)

@@ -4,7 +4,7 @@ import os
 # import GPUtil
 import sys
 
-os.environ['LD_PRELOAD'] = f"{os.environ['HOME']}/.mujoco/mujoco210/bin/libglewegl.so"
+# os.environ['LD_PRELOAD'] = f"{os.environ['HOME']}/.mujoco/mujoco210/bin/libglewegl.so"
 # sys.path.remove('/data/yaoxt3/RL/rlpyt')
 # sys.path.append('/data/yaoxt3/Sina-thesis/rlpyt')
 
@@ -31,9 +31,9 @@ def choose_affinity(slot_affinity_code):
         # num_gpus = len(GPUtil.getGPUs())
 
     affinity = make_affinity(
-        n_cpu_core=32,
-        n_gpu=2, 
-        set_affinity=False)
+        n_cpu_core=16,
+        n_gpu=1, 
+        set_affinity=True)
 
     print(f'Affinity -> {affinity}')
     return affinity
@@ -57,24 +57,26 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
 
         sampler_kwargs=dict(
             batch_T=sequence_length,
-            batch_B=1,
-            eval_n_envs=num_workers_cpus,
-            eval_max_steps=1e5,
-            eval_max_trajectories=num_workers_cpus * 20,
+            batch_B=2,
+            eval_n_envs=1,
+            eval_max_steps=1e3,
+            eval_max_trajectories=num_workers_cpus * 16,
             TrajInfoCls=EnvInfoTrajInfo,
             env_kwargs=dict(
+                mujoco_context_lock=mujoco_context_lock,
                 action_repeat=2,
                 demonstration_action_repeat=5,
                 max_trials_per_episode=3,
                 mode='meta-training',
-                benchmark='ml10'
+                benchmark='ml10',
             ),
             eval_env_kwargs=dict(
+                mujoco_context_lock=mujoco_context_lock,
                 benchmark='ml10',
                 action_repeat=2,
                 demonstration_action_repeat=5,
                 max_trials_per_episode=3,
-                mode='all'
+                mode='all',
             )
         ),
 
@@ -88,7 +90,7 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
         ),
 
         runner_kwargs=dict(
-            n_steps=4e8,
+            n_steps=1e5,
             log_interval_steps=5e6
         ),
     )

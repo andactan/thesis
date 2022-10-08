@@ -190,6 +190,10 @@ class VMPO(RlAlgorithm):
                     old_dist_info=samples.agent.agent_info.dist_info[:, idxs],
                     opt_info=opt_info,
                 )
+
+                if torch.any(torch.isnan(loss)):
+                    print('found NaN values in loss')
+                    
                 loss.backward()
                 self.optimizer.step()
                 self.clamp_lagrange_multipliers()

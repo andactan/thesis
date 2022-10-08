@@ -70,13 +70,13 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
 
         sampler_kwargs=dict(
             batch_T=sequence_length, # number of time steps to be taken in each environment
-            batch_B=285, # number of parallel envs
+            batch_B=152, # number of parallel envs
             eval_n_envs=100,
             eval_max_steps=1e5, # changed 
             eval_max_trajectories=400, # changed 360 -> 400
             TrajInfoCls=EnvInfoTrajInfo,
             env_kwargs=dict(
-                action_repeat=4, # changed 2 => 4
+                action_repeat=2, # changed 2 => 4
                 demonstration_action_repeat=5, # not used
                 max_trials_per_episode=3, # changed 3 -> 4
                 mode='meta-training',
@@ -84,7 +84,7 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
             ),
             eval_env_kwargs=dict(
                 benchmark='ml10',
-                action_repeat=4, # changed 2 -> 4
+                action_repeat=2, # changed 2 -> 4
                 demonstration_action_repeat=5, # not used
                 max_trials_per_episode=3, # changed 3 -> 4
                 mode='all'

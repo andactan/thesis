@@ -78,7 +78,7 @@ class VMPOModel(torch.nn.Module):
             depth=self.depth,
             sequence_len=self.sequence_len,
             memory_len=self.sequence_len,
-            memory_layers=range(1, self.depth + 1),
+            memory_layers=range(1, self.depth + 1), # upper half has the memory option
         )
         self.transformer.token_embedding = torch.nn.Identity()
         self.transformer.to_logits = torch.nn.Identity()

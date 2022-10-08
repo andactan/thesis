@@ -17,17 +17,8 @@ class ExpertEncoder(nn.Module):
         weight_network_dim_hidden,
         weight_network_dim_output,
         num_experts,
-        # dim_input_context_encoder,
-        # dim_hidden_context_encoder,
-        # dim_output_context_encoder,
         ):
         super().__init__()
-
-        # self.context_encoder = ContextEncoder(
-        #     dim_input=dim_input_context_encoder,
-        #     dim_hidden=dim_hidden_context_encoder,
-        #     dim_output=dim_output_context_encoder
-        # )
 
         self.state_encoder = StateEncoders(
             dim_input=state_encoder_dim_input,

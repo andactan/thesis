@@ -11,7 +11,11 @@ class StateEncoder(nn.Module):
 
     self.model = nn.Sequential(OrderedDict([
       ('input', nn.Linear(dim_input, dim_hidden, bias=True)),
-      ('relu', nn.ReLU()),
+      ('relu1', nn.ReLU()),
+      ('hidden1', nn.Linear(dim_hidden, dim_hidden * 2, bias=True)),
+      ('relu2', nn.ReLU()),
+      ('hidden2', nn.Linear(dim_hidden * 2, dim_hidden, bias=True)),
+      ('relu3', nn.ReLU()),
       ('output', nn.Linear(dim_hidden, dim_output, bias=True))
     ]))
 

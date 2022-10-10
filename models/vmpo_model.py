@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import models.layers as layers
 
+from models.feedback_transformer import FeedbackTransformer
 from models.mixture_of_experts.context_encoder import ContextEncoder
 from models.mixture_of_experts.expert_encoder import ExpertEncoder
 
@@ -64,6 +65,19 @@ class VMPOModel(torch.nn.Module):
             num_experts=num_experts
         )
 
+        # # feedback transformer
+        # self.transformer = FeedbackTransformer(
+        #     num_tokens=20000,
+        #     dim=256,
+        #     depth=6,
+        #     seq_len=self.sequence_len,
+        #     mem_len=self.sequence_len,
+        #     dim_head=64,
+        #     heads=8,
+        #     attn_dropout=0.1,
+        #     ff_dropout=0.1
+        # )
+
         # transformer configs
         self.size_dict = SIZE[self.size]
         self.transformer_dim = self.size_dict["dim"]
@@ -80,6 +94,7 @@ class VMPOModel(torch.nn.Module):
             memory_len=self.sequence_len,
             memory_layers=range(1, self.depth + 1), # upper half has the memory option
         )
+
         self.transformer.token_embedding = torch.nn.Identity()
         self.transformer.to_logits = torch.nn.Identity()
 

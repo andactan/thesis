@@ -1,5 +1,3 @@
-# https://github.com/facebookresearch/mtrl
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -67,26 +65,13 @@ class ExpertEncoder(nn.Module):
 #     weight_network_dim_output=2,
 #     num_experts=2)
 
-<<<<<<< Updated upstream
 # state = torch.rand(128, 50)
 # context = torch.rand(128, 100)
 
 # # torch.cat((state, context), dim=-1)
-=======
-        attention = F.softmax(attention, dim=2)
-        combined = torch.matmul(attention.permute(0, 1, 3, 2), temp)
-        combined = combined.squeeze(dim=2)
-        normalizer = combined.sum(dim=-1)
-        combined = combined / normalizer
-        return self.mlp(combined)
 
-e = ExpertEncoder(state_encoder_dim_input=39, state_encoder_dim_hidden=50, state_encoder_dim_output=100, num_experts=2)
-state = torch.rand(14, 14, 39)
-context = torch.rand(14, 14, 100)
->>>>>>> Stashed changes
-
-x = e(state, context)
-print()
+# x = e(state, context)
+# print()
 # z = state.matmul(weight)
 # y = state.squeeze(dim=0).matmul(weight)
 # print('z', z)

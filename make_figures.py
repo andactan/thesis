@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import pandas
 import os
 
-
+BASE_PATH = os.path.join(os.getcwd(), 'downloads')
 path_baseline = os.path.join(os.getcwd(), "run_160922-151557", "progress.csv")
-path_improve = os.path.join(os.getcwd(), 'run_250922-130944', 'progress.csv')
+path_improve = os.path.join(BASE_PATH, 'experts-4-2', 'progress.csv')
 df_baseline = pandas.read_csv(path_baseline, header=0)
 df_improve = pandas.read_csv(path_improve, header=0)
 

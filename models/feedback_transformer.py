@@ -315,17 +315,18 @@ if __name__ == '__main__':
     num_tokens = 20000,           # number of tokens
     dim = 512,                    # dimension
     depth = 6,                    # depth
-    seq_len = 512,               # the sequence length of each segment or window
-    mem_len = 512,                # length of the memory buffer
+    seq_len = 2,               # the sequence length of each segment or window
+    mem_len = 2,                # length of the memory buffer
     dim_head = 64,                # dimension of each head
-    heads = 8,                    # number of heads
+    heads = 8,                  # number of heads
     attn_dropout = 0.1,           # attention dropout
     ff_dropout = 0.1              # feedforward dropout
     )
-    x = torch.randint(0, 256, (1, 1024))
+    x = torch.randint(0, 1024, (1, 2))
 
     start = time.time()
     model(x)
     end = time.time()
 
     print(f'took {end - start}')
+    print(sum(p.numel() for p in model.parameters()))

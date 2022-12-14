@@ -504,17 +504,18 @@ if __name__ == '__main__':
         ff_dropout = 0.1,              # dropout in feedforward
         gru_gated_residual = True,     # whether to gate the residual intersection, from 'Stabilizing Transformer for RL' paper
         mogrify_gru = False,           # experimental feature that adds a mogrifier for the update and residual before gating by the GRU
-        memory_layers = range(6, 13),  # specify which layers to use long-range memory, from 'Do Transformers Need LR Memory' paper
+        memory_layers = None,  # specify which layers to use long-range memory, from 'Do Transformers Need LR Memory' paper
         ff_glu = True                  # use GLU variant for feedforward
     )
 
-    inputs = torch.randint(0, 256, (1, 2048))
+    inputs = torch.randint(0, 256, (1, 2))
     masks = torch.ones_like(inputs).bool()
 
-    segments = inputs.reshape(1, -1, 1024).transpose(0, 1)
-    masks = masks.reshape(1, -1, 1024).transpose(0, 1)
+    segments = inputs.reshape(1, -1, 2).transpose(0, 1)
+    masks = masks.reshape(1, -1, 2).transpose(0, 1)
 
     start = time.time()
     logits, memories, aux_loss = model(segments[0], mask = masks[0])
     end = time.time()
     print(f'took {end - start}')
+    print(sum(p.numel() for p in model.parameters()))

@@ -33,8 +33,8 @@ def choose_affinity(slot_affinity_code):
         num_gpus = len(GPUtil.getGPUs())
 
     affinity = make_affinity(
-        n_cpu_core=20,
-        cpu_per_run=20,
+        n_cpu_core=8,
+        cpu_per_run=8,
         n_gpu=1,
         async_sample=True,
         optim_sample_share_gpu=False,
@@ -55,13 +55,13 @@ def metaworld_env_wrapper(**kwargs):
     return GymEnvWrapper(CustomEnvInfoWrapper(env, info_example))
 
 def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=False, alternating_sampler=False, name='run'):
-    sequence_length = 64 # changed 64 -> 80
+    sequence_length = 8 # changed 64 -> 80
     config = dict(
         algo_kwargs=dict(
             epochs=4,
             minibatches=1,
             T_target_steps=100, # changed 100 -> 120
-            batch_B=256, # changed 128 -> 256
+            batch_B=2, # changed 128 -> 256
             batch_T=sequence_length,
             epsilon_eta=0.1,
             gae_lambda=1,
@@ -70,8 +70,8 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
 
         sampler_kwargs=dict(
             batch_T=sequence_length, # number of time steps to be taken in each environment
-            batch_B=152, # number of parallel envs
-            eval_n_envs=100,
+            batch_B=2, # number of parallel envs
+            eval_n_envs=2,
             eval_max_steps=1e5, # changed 
             eval_max_trajectories=400, # changed 360 -> 400
             TrajInfoCls=EnvInfoTrajInfo,

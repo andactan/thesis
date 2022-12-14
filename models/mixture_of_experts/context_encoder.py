@@ -19,8 +19,8 @@ class ContextEncoder(nn.Module):
       ('trunk_linear1', nn.Linear(dim_hidden, dim_hidden)),
       ('relu3', nn.ReLU()),
       ('trunk_linear2', nn.Linear(dim_hidden, dim_output)),
-      # ('relu4', nn.ReLU()),
-      # ('output', nn.Linear(dim_hidden, dim_output))
+      ('relu4', nn.ReLU()),
+      ('output', nn.Linear(dim_hidden, dim_output))
     ]))
 
   def forward(self, x):

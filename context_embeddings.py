@@ -75,7 +75,7 @@ for key, val in INSTRUCTIONS.items():
     embeddings[k] = sentence.embedding.cpu().numpy()
     print(sentence.embedding.shape)
 
-with open('contenxt_embeddings_roberta.pkl', 'wb') as handle:
+with open('context_embeddings_roberta.pkl', 'wb') as handle:
     import pickle
 
     pickle.dump(embeddings, handle, protocol=pickle.HIGHEST_PROTOCOL)

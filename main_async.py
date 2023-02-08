@@ -3,6 +3,7 @@ import multiprocessing
 import os
 import GPUtil
 import sys
+import argparse
 
 # sys.path.remove('/data/yaoxt3/RL/rlpyt')
 # sys.path.append('/data/yaoxt3/Sina-thesis/rlpyt')
@@ -54,7 +55,7 @@ def metaworld_env_wrapper(**kwargs):
 
     return GymEnvWrapper(CustomEnvInfoWrapper(env, info_example))
 
-def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=False, alternating_sampler=False, name='run'):
+def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=False, alternating_sampler=False, name='run', seed=None):
     sequence_length = 8 # changed 64 -> 80
     config = dict(
         algo_kwargs=dict(
@@ -124,7 +125,8 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
         agent=agent,
         sampler=sampler,
         # affinity=dict(cuda_idx=0, workers_cpus=list(range(8)))
-        affinity=affinity
+        affinity=affinity,
+        seed=seed
     )
 
     log_dir = os.path.join(os.getcwd(), log_dir)
@@ -134,4 +136,9 @@ def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=
         runner.train()
 
 if __name__ == '__main__':
-    build_and_train()
+    arg_parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", help="Seed value")
+    args = parse.parse_args()
+    seed = args.seed
+    
+    build_and_train(seed=seed)

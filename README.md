@@ -23,3 +23,10 @@ python make_figures.py
 ```
 
 This will create all the figures and store them inside the `/figures` directory.
+
+## Generating Contextual Embeddings
+To generate contextual embeddings for the environment name, run `/environment/context_embeddings.py` as
+
+```bash
+python context_embeddings.py
+```

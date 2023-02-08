@@ -16,7 +16,7 @@ python main_async.py --seed 2
 ```
 
 ## Creating figures
-To create the figures in the thesis work, you can run the `make_figures.py` script in the `/figures` directory as
+To create the figures in the thesis work, you can run the `make_figures.py` script in the `figures` directory as
 
 ```bash
 python make_figures.py
@@ -25,7 +25,7 @@ python make_figures.py
 This will create all the figures and store them inside the `/figures` directory.
 
 ## Generating Contextual Embeddings
-To generate contextual embeddings for the environment name, run `/environment/context_embeddings.py` as
+To generate contextual embeddings for the environment name, run `context_embeddings.py` in `environment` directory as
 
 ```bash
 python context_embeddings.py

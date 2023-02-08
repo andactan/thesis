@@ -56,7 +56,7 @@ def metaworld_env_wrapper(**kwargs):
     return GymEnvWrapper(CustomEnvInfoWrapper(env, info_example))
 
 def build_and_train(slot_affinity_code=None, log_dir='experiments', serial_mode=False, alternating_sampler=False, name='run', seed=None):
-    sequence_length = 8 # changed 64 -> 80
+    sequence_length = 64 # changed 64 -> 80
     config = dict(
         algo_kwargs=dict(
             epochs=4,

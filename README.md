@@ -15,6 +15,11 @@ python main_async.py --seed 1
 python main_async.py --seed 2
 ```
 
+Results of the experiments are then saved under the directory `experiments` in the following structure:
+```
+run_[DAY][MONTH][YEAR]-[HOUR][MINUTE][SECONDS]
+```
+
 ## Creating figures
 To create the figures in the thesis work, you can run the `make_figures.py` script in the `figures` directory as
 

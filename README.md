@@ -22,7 +22,7 @@ To create the figures in the thesis work, you can run the `make_figures.py` scri
 python make_figures.py
 ```
 
-This will create all the figures and store them inside the `/figures` directory.
+This will create all the figures and store them inside the `figures` directory.
 
 ## Generating Contextual Embeddings
 To generate contextual embeddings for the environment name, run `context_embeddings.py` in `environment` directory as
@@ -30,3 +30,5 @@ To generate contextual embeddings for the environment name, run `context_embeddi
 ```bash
 python context_embeddings.py
 ```
+
+This will save the embeddings as a `dict` structure in which keys are the environment names and the values are the context embeddings, and it is pickled into the file `context_embeddings_roberta.pkl`.

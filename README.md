@@ -17,7 +17,7 @@ python main_async.py --seed 2
 
 Results of the experiments are then saved under the directory `experiments` in the following structure:
 ```
-run_[DAY][MONTH][YEAR]-[HOUR][MINUTE][SECONDS]
+run_[DAY][MONTH][YEAR]-[HOUR][MINUTE][SECOND]
 ```
 
 ## Creating figures

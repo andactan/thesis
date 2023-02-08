@@ -56,7 +56,7 @@ experts = {
     ],
     8: [os.path.join(BASE_PATH, "moe-8-0"), os.path.join(BASE_PATH, "moe-8-1"), os.path.join(BASE_PATH, "moe-8-2")],
     16: [os.path.join(BASE_PATH, "moe-16-0"), os.path.join(BASE_PATH, "moe-16-1")],
-    # 'Base': [os.path.join(BASE_PATH, 'base-0'), os.path.join(BASE_PATH, 'base-1')]
+    'Base': [os.path.join(BASE_PATH, 'base-0'), os.path.join(BASE_PATH, 'base-1')]
 }
 
 if __name__ == "__main__":
